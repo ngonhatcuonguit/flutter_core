@@ -1,7 +1,11 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_core_project/common/helpers/is_dark_mode.dart';
 import 'package:flutter_core_project/core/configs/theme/app_colors.dart';
+import 'package:flutter_core_project/presentation/auth/pages/signup_or_signin.dart';
+import 'package:flutter_core_project/presentation/choose_mode/bloc/theme_cubit.dart';
 import 'package:flutter_svg/svg.dart';
 
 import '../../../common/widgets/button/basic_app_button.dart';
@@ -55,17 +59,22 @@ class ChooseModePage extends StatelessWidget {
                   children: [
                     Column(
                       children: [
-                        ClipOval(
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                            child: Container(
-                              height: 60,
-                              width: 60,
-                              decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.1), shape: BoxShape.circle),
-                              child: SvgPicture.asset(
-                                AppVectors.moon,
-                                fit: BoxFit.none,
+                        GestureDetector(
+                          onTap: () {
+                            context.read<ThemeCubit>().updateTheme(ThemeMode.dark);
+                          },
+                          child: ClipOval(
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                              child: Container(
+                                height: 60,
+                                width: 60,
+                                decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.1), shape: BoxShape.circle),
+                                child: SvgPicture.asset(
+                                  AppVectors.moon,
+                                  fit: BoxFit.none,
+                                ),
                               ),
                             ),
                           ),
@@ -84,17 +93,22 @@ class ChooseModePage extends StatelessWidget {
                     const SizedBox(width: 50),
                     Column(
                       children: [
-                        ClipOval(
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                            child: Container(
-                              height: 60,
-                              width: 60,
-                              decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.1), shape: BoxShape.circle),
-                              child: SvgPicture.asset(
-                                AppVectors.sun,
-                                fit: BoxFit.none,
+                        GestureDetector(
+                          onTap: () {
+                            context.read<ThemeCubit>().updateTheme(ThemeMode.light);
+                          },
+                          child: ClipOval(
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                              child: Container(
+                                height: 60,
+                                width: 60,
+                                decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.1), shape: BoxShape.circle),
+                                child: SvgPicture.asset(
+                                  AppVectors.sun,
+                                  fit: BoxFit.none,
+                                ),
                               ),
                             ),
                           ),
@@ -118,7 +132,7 @@ class ChooseModePage extends StatelessWidget {
                     Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (BuildContext context) => const ChooseModePage()));
+                            builder: (BuildContext context) => const SignupOrSigninPage()));
                   },
                   title: 'Continue',
                 ),
