@@ -20,11 +20,20 @@ dependencies:
   flutter_bloc:
   hydrated_bloc:
   path_provider:
+  dio:
+  retrofit:
+  json_annotation:
+  json_serializable:
+  flutter_dotenv:
+  pretty_dio_logger:
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.0
+  json_serializable:
+  build_runner:
+  retrofit_generator:
 
 flutter:
 
