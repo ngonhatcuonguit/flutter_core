@@ -445,12 +445,12 @@ class DioUtil {
         'Đã có lỗi xảy ra, vui lòng thử lại';
   }
 
-  DataError<T> handleError<T>(dynamic error) {
-    if (error is DioException) {
-      return DataError<T>(error.message ?? "Lỗi, vui lòng thử lại sau.");
-    }
-    return DataError<T>(error.toString());
-  }
+  // DataError<T> handleError<T>(dynamic error) {
+  //   if (error is DioException) {
+  //     return DataError<T>(error.message ?? "Lỗi, vui lòng thử lại sau.");
+  //   }
+  //   return DataError<T>(error.toString());
+  // }
 
 }
 

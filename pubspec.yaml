@@ -9,7 +9,9 @@ dependencies:
   flutter:
     sdk: flutter
 
+  #State Management
   bloc: ^8.1.1
+  #comparing dart objects
   equatable: ^2.0.5
   repository:
 
@@ -21,11 +23,25 @@ dependencies:
   hydrated_bloc:
   path_provider:
   dio:
+  #make request to api
   retrofit:
+
   json_annotation:
   json_serializable:
+
   flutter_dotenv:
+
   pretty_dio_logger:
+  #Service locator
+  get_it:
+  #Date format
+  intl:
+  #Database
+  floor:
+  #Hooks
+  flutter_hooks:
+  #cached image
+  cached_network_image:
 
 dev_dependencies:
   flutter_test:
