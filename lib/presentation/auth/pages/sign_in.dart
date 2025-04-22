@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_core_project/common/helpers/is_dark_mode.dart';
 import 'package:flutter_core_project/presentation/auth/pages/sign_up.dart';
+import 'package:flutter_core_project/presentation/pages/news/daily_news.dart';
 import 'package:flutter_core_project/presentation/widgets/appbar/app_bar.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -34,7 +35,12 @@ class SigninPage extends StatelessWidget {
             const SizedBox(height: 20),
             BasicAppButton(
               title: 'Sign In',
-              onPressed: () {},
+                onPressed: () {
+                  Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (BuildContext context) => const DailyNews())
+                  );
+                }
             ),
           ],
         ),

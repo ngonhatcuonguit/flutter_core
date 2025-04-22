@@ -10,7 +10,7 @@ import 'domain/usecases/get_article.dart';
 
 final sl = GetIt.instance;
 
-Future<void> initializeInjection() async {
+Future<void> initializeDependencies() async {
   // Register your dependencies here
   // Example:
   // sl.registerLazySingleton<SomeService>(() => SomeServiceImpl());
