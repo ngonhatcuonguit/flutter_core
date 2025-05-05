@@ -8,50 +8,61 @@ import '../../../core/configs/assets/app_vectors.dart';
 import '../../bloc/article/remote/remote_article_event.dart';
 import '../../widgets/article_widget.dart';
 
-class DailyNews extends StatelessWidget {
+class DailyNews extends StatefulWidget {
   const DailyNews({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MultiBlocProvider(
-      providers: [
-        BlocProvider(
-          create: (context) => BlocProvider.of<RemoteArticlesBloc>(context)
-            ..add(const GetArticles()),
-        ),
-      ],
-      child: Scaffold(
-        appBar: BasicAppBar(
-          title: SvgPicture.asset(
-            AppVectors.logo,
-            height: 30,
-            width: 30,
-          ),
-        ),
-        body: _buildBody(),
-      ),
-    );
-  }
+  State<DailyNews> createState() => _DailyNewsState();
 }
 
-_buildBody() {
+class _DailyNewsState extends State<DailyNews> {
+  @override
+  void initState() {
+    super.initState();
+
+    // Lấy bloc từ context
+    final bloc = context.read<RemoteArticlesBloc>();
+
+    // Nếu bloc chưa bị đóng thì mới được add event
+    if (!bloc.isClosed) {
+      bloc.add(const GetArticles());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: BasicAppBar(
+        title: SvgPicture.asset(
+          AppVectors.logo,
+          height: 30,
+          width: 30,
+        ),
+      ),
+      body: _buildBody(),
+    );
+  }
+
+
+}
+
+Widget _buildBody() {
   return BlocBuilder<RemoteArticlesBloc, RemoteArticleState>(
-    builder: (_, state) {
+    builder: (context, state) {
       if (state is RemoteArticleLoading) {
         return const Center(child: CircularProgressIndicator());
       } else if (state is RemoteArticleError) {
         return const Center(child: Icon(Icons.refresh));
       } else if (state is RemoteArticleDone) {
         return ListView.builder(
-          itemBuilder: (context, index) {
-            return ArticleWidget(
-              article: state.articles![index],
-            );
-          },
           itemCount: state.articles?.length,
+          itemBuilder: (context, index) {
+            return ArticleWidget(article: state.articles![index]);
+          },
         );
       }
       return const SizedBox();
     },
   );
 }
+

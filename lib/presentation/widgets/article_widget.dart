@@ -20,7 +20,7 @@ class ArticleWidget extends StatelessWidget {
         top: 10,
         bottom: 10,
       ),
-      height: MediaQuery.of(context).size.height / 2.2,
+      height: (MediaQuery.of(context).size.width / 3) * 1.6,
       child: Row(
         children: [
           _buildImage(context),
@@ -31,6 +31,7 @@ class ArticleWidget extends StatelessWidget {
   }
 
   Widget _buildImage(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
     return CachedNetworkImage(
       imageUrl: article!.urlToImage ?? "",
       imageBuilder: (context, imageProvider) => Padding(
@@ -41,7 +42,7 @@ class ArticleWidget extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           child: Container(
             height: double.maxFinite,
-            width: MediaQuery.of(context).size.width / 3,
+            width: screenWidth / 3,
             decoration: BoxDecoration(
               color: Colors.black.withOpacity(0.08),
               image: DecorationImage(
@@ -60,7 +61,7 @@ class ArticleWidget extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           child: Container(
               height: double.maxFinite,
-              width: MediaQuery.of(context).size.width / 3,
+              width: screenWidth / 3,
               decoration: BoxDecoration(
                 color: Colors.black.withOpacity(0.08),
               ),
@@ -75,7 +76,7 @@ class ArticleWidget extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           child: Container(
             height: double.maxFinite,
-            width: MediaQuery.of(context).size.width / 3,
+            width: screenWidth / 3,
             decoration: const BoxDecoration(
               color: Colors.grey,
             ),
