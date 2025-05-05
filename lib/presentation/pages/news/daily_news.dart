@@ -4,9 +4,9 @@ import 'package:flutter_core_project/presentation/bloc/article/remote/remote_art
 import 'package:flutter_core_project/presentation/bloc/article/remote/remote_article_state.dart';
 import 'package:flutter_core_project/presentation/widgets/appbar/app_bar.dart';
 import 'package:flutter_svg/svg.dart';
-
 import '../../../core/configs/assets/app_vectors.dart';
 import '../../bloc/article/remote/remote_article_event.dart';
+import '../../widgets/article_widget.dart';
 
 class DailyNews extends StatelessWidget {
   const DailyNews({super.key});
@@ -44,8 +44,8 @@ _buildBody() {
       } else if (state is RemoteArticleDone) {
         return ListView.builder(
           itemBuilder: (context, index) {
-            return ListTile(
-              title: Text('$index'),
+            return ArticleWidget(
+              article: state.articles![index],
             );
           },
           itemCount: state.articles?.length,
