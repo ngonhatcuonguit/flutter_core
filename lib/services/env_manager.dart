@@ -1,4 +1,3 @@
-
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class EnvManager {
@@ -7,12 +6,16 @@ class EnvManager {
   factory EnvManager() => _instance;
 
   EnvManager._();
+
   static EnvManager get shared => _instance;
 
-  String get apiBaseUrlMyTHP => dotenv.env['base_url_driver']!;
-  // String get apiNodeUrl => dotenv.env['api_node_url']!;
-  // String get apiSocketApi => dotenv.env['api_socket_api']!;
-  // String get apiKey => dotenv.env['API_KEY']!;
-  // String get environmentName => dotenv.env['environment_name']!;
-  // String get socketChat => dotenv.env['socket_chat']!;
+  // API Configuration
+  String get apiBaseUrl =>
+      dotenv.env['API_BASE_URL'] ?? 'https://newsapi.org/v2';
+  String get apiKey => dotenv.env['API_KEY'] ?? '';
+  String get environment => dotenv.env['ENVIRONMENT'] ?? 'development';
+
+  // Check if running in production
+  bool get isProduction => environment == 'production';
+  bool get isDevelopment => environment == 'development';
 }

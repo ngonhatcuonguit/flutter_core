@@ -24,7 +24,7 @@ dependencies:
   path_provider:
   dio:
   #make request to api
-  retrofit:
+  retrofit: ^4.4.2
 
   json_annotation:
   json_serializable:
@@ -48,8 +48,8 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^2.0.0
   json_serializable:
-  build_runner:
-  retrofit_generator:
+  build_runner: ^2.4.9
+  retrofit_generator: ^8.2.1
 
 flutter:
 
@@ -59,6 +59,8 @@ flutter:
     - assets/images/
     - assets/vectors/
     - assets/fonts/
+    - .env.dev
+    - .env.prod
 
   fonts:
     - family: Satoshi
