@@ -2,10 +2,11 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_core_project/common/helpers/is_dark_mode.dart';
 import 'package:flutter_core_project/core/configs/theme/app_colors.dart';
 import 'package:flutter_core_project/presentation/auth/pages/signup_or_signin.dart';
+import 'package:flutter_core_project/presentation/choose_mode/bloc/locale_cubit.dart';
 import 'package:flutter_core_project/presentation/choose_mode/bloc/theme_cubit.dart';
+import 'package:flutter_core_project/services/localization_service.dart';
 import 'package:flutter_svg/svg.dart';
 
 import '../../../common/widgets/button/basic_app_button.dart';
@@ -17,6 +18,8 @@ class ChooseModePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+
     return Scaffold(
       body: Stack(
         children: [
@@ -45,13 +48,35 @@ class ChooseModePage extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                const Text(
-                  'Choose Mode',
-                  style: TextStyle(
+                Text(
+                  localizations?.translate('choose_mode') ?? 'Choose Mode',
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
+                ),
+                const SizedBox(height: 20),
+                // Language Selector
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildLanguageOption(
+                      context,
+                      'EN',
+                      'English',
+                      () => context.read<LocaleCubit>().changeLocale('en'),
+                      context.read<LocaleCubit>().state.languageCode == 'en',
+                    ),
+                    const SizedBox(width: 20),
+                    _buildLanguageOption(
+                      context,
+                      'VI',
+                      'Tiếng Việt',
+                      () => context.read<LocaleCubit>().changeLocale('vi'),
+                      context.read<LocaleCubit>().state.languageCode == 'vi',
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 40),
                 Row(
@@ -61,7 +86,9 @@ class ChooseModePage extends StatelessWidget {
                       children: [
                         GestureDetector(
                           onTap: () {
-                            context.read<ThemeCubit>().updateTheme(ThemeMode.dark);
+                            context
+                                .read<ThemeCubit>()
+                                .updateTheme(ThemeMode.dark);
                           },
                           child: ClipOval(
                             child: BackdropFilter(
@@ -70,7 +97,8 @@ class ChooseModePage extends StatelessWidget {
                                 height: 60,
                                 width: 60,
                                 decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.1), shape: BoxShape.circle),
+                                    color: Colors.white.withOpacity(0.1),
+                                    shape: BoxShape.circle),
                                 child: SvgPicture.asset(
                                   AppVectors.moon,
                                   fit: BoxFit.none,
@@ -80,9 +108,9 @@ class ChooseModePage extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 15),
-                        const Text(
-                          'Dark Mode',
-                          style: TextStyle(
+                        Text(
+                          localizations?.translate('dark_mode') ?? 'Dark Mode',
+                          style: const TextStyle(
                             color: AppColors.lightGrey,
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
@@ -95,7 +123,9 @@ class ChooseModePage extends StatelessWidget {
                       children: [
                         GestureDetector(
                           onTap: () {
-                            context.read<ThemeCubit>().updateTheme(ThemeMode.light);
+                            context
+                                .read<ThemeCubit>()
+                                .updateTheme(ThemeMode.light);
                           },
                           child: ClipOval(
                             child: BackdropFilter(
@@ -104,7 +134,8 @@ class ChooseModePage extends StatelessWidget {
                                 height: 60,
                                 width: 60,
                                 decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.1), shape: BoxShape.circle),
+                                    color: Colors.white.withOpacity(0.1),
+                                    shape: BoxShape.circle),
                                 child: SvgPicture.asset(
                                   AppVectors.sun,
                                   fit: BoxFit.none,
@@ -114,9 +145,10 @@ class ChooseModePage extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 15),
-                        const Text(
-                          'Light Mode',
-                          style: TextStyle(
+                        Text(
+                          localizations?.translate('light_mode') ??
+                              'Light Mode',
+                          style: const TextStyle(
                             color: AppColors.lightGrey,
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
@@ -132,14 +164,49 @@ class ChooseModePage extends StatelessWidget {
                     Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (BuildContext context) => const SignupOrSigninPage()));
+                            builder: (BuildContext context) =>
+                                const SignupOrSigninPage()));
                   },
-                  title: 'Continue',
+                  title: localizations?.translate('continue') ?? 'Continue',
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildLanguageOption(
+    BuildContext context,
+    String code,
+    String label,
+    VoidCallback onTap,
+    bool isSelected,
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.primary.withOpacity(0.3)
+              : Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color:
+                isSelected ? AppColors.primary : Colors.white.withOpacity(0.3),
+            width: 2,
+          ),
+        ),
+        child: Text(
+          code,
+          style: TextStyle(
+            color: isSelected ? AppColors.primary : AppColors.lightGrey,
+            fontSize: 14,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+          ),
+        ),
       ),
     );
   }

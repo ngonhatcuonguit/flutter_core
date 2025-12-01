@@ -8,6 +8,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   #State Management
   bloc: ^8.1.1
@@ -59,8 +61,12 @@ flutter:
     - assets/images/
     - assets/vectors/
     - assets/fonts/
+<<<<<<< HEAD
     - .env.dev
     - .env.prod
+=======
+    - lib/l10n/
+>>>>>>> clean_architecture
 
   fonts:
     - family: Satoshi
