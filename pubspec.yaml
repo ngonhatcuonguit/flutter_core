@@ -62,6 +62,8 @@ flutter:
     - assets/vectors/
     - assets/fonts/
     - lib/l10n/
+    - .env.dev
+    - .env.prod
 
   fonts:
     - family: Satoshi
