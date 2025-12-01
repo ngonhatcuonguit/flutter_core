@@ -18,4 +18,13 @@ class AppVectors {
   static const String icHeartActive = '${basePath}ic_heart_active$format';
   static const String icProfile = '${basePath}ic_profile$format';
   static const String icProfileActive = '${basePath}ic_profile_active$format';
+
+  // Profile Menu Icons
+  static const String icSettings = '${basePath}Setting$format';
+  static const String icNotification = '${basePath}ic_noti$format';
+  static const String icOrderHistory = '${basePath}ic_older_history$format';
+  static const String icPrivacy = '${basePath}ic_policy$format';
+  static const String icTerms = '${basePath}ic_term$format';
+  static const String icLogout = '${basePath}ic_logout$format';
+  static const String icRecycleBin = '${basePath}ic_recyclebin$format';
 }
