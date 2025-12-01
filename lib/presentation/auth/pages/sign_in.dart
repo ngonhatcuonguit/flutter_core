@@ -1,15 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_core_project/common/helpers/is_dark_mode.dart';
 import 'package:flutter_core_project/presentation/auth/pages/sign_up.dart';
-import 'package:flutter_core_project/presentation/pages/news/daily_news.dart';
+import 'package:flutter_core_project/presentation/pages/main/main_screen.dart';
 import 'package:flutter_core_project/presentation/widgets/appbar/app_bar.dart';
+import 'package:flutter_core_project/services/auth_service.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../common/widgets/button/basic_app_button.dart';
 import '../../../core/configs/assets/app_vectors.dart';
 
-class SigninPage extends StatelessWidget {
+class SigninPage extends StatefulWidget {
   const SigninPage({super.key});
+
+  @override
+  State<SigninPage> createState() => _SigninPageState();
+}
+
+class _SigninPageState extends State<SigninPage> {
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,21 +50,43 @@ class SigninPage extends StatelessWidget {
             _passwordField(context),
             const SizedBox(height: 20),
             BasicAppButton(
-              title: 'Sign In',
-                onPressed: () {
+                title: 'Sign In',
+                onPressed: () async {
+                  // Mock login - accept any email/password for testing
+                  final email = _emailController.text.trim();
+
+                  if (email.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please enter email'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+
+                  // Save login state
+                  await AuthService.setLoggedIn(
+                    email: email,
+                    name: email.split('@').first,
+                  );
+
+                  if (!mounted) return;
+
+                  // Navigate to home
                   Navigator.pushReplacement(
                       context,
-                      MaterialPageRoute(builder: (BuildContext context) => const DailyNews())
-                  );
-                }
-            ),
+                      MaterialPageRoute(
+                          builder: (BuildContext context) =>
+                              const MainScreen()));
+                }),
           ],
         ),
       ),
     );
   }
 
-  Widget _registerText(BuildContext context){
+  Widget _registerText(BuildContext context) {
     return Text(
       'Sign In',
       textAlign: TextAlign.center,
@@ -60,8 +98,10 @@ class SigninPage extends StatelessWidget {
     );
   }
 
-  Widget _emailOrNameField(BuildContext context){
+  Widget _emailOrNameField(BuildContext context) {
     return TextField(
+      controller: _emailController,
+      keyboardType: TextInputType.emailAddress,
       decoration: const InputDecoration(
         hintText: 'Enter Username Or Email',
       ).applyDefaults(
@@ -70,8 +110,10 @@ class SigninPage extends StatelessWidget {
     );
   }
 
-  Widget _passwordField(BuildContext context){
+  Widget _passwordField(BuildContext context) {
     return TextField(
+      controller: _passwordController,
+      obscureText: true,
       decoration: const InputDecoration(
         hintText: 'Enter Password',
       ).applyDefaults(
@@ -80,9 +122,9 @@ class SigninPage extends StatelessWidget {
     );
   }
 
-  Widget _signupText(BuildContext context){
+  Widget _signupText(BuildContext context) {
     return TextButton(
-        onPressed: (){},
+        onPressed: () {},
         child: Padding(
           padding: const EdgeInsets.symmetric(
             vertical: 30,
@@ -102,21 +144,16 @@ class SigninPage extends StatelessWidget {
                   onPressed: () {
                     Navigator.pushReplacement(
                         context,
-                        MaterialPageRoute(builder: (BuildContext context) => const SignUpPage())
-                    );
+                        MaterialPageRoute(
+                            builder: (BuildContext context) =>
+                                const SignUpPage()));
                   },
                   child: const Text(
                     'Register Now',
-                    style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold
-                    ),
-                  )
-              )
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  ))
             ],
           ),
-        )
-    );
+        ));
   }
-
 }
