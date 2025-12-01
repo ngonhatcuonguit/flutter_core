@@ -1,0 +1,16 @@
+{
+  "hello": "Xin chào",
+  "welcome": "Chào mừng bạn đến với ứng dụng của chúng tôi!",
+  "get_started": "Bắt đầu",
+  "choose_mode": "Chọn chế độ",
+  "dark_mode": "Chế độ tối",
+  "light_mode": "Chế độ sáng",
+  "continue": "Tiếp tục",
+  "enjoy_listening": "Tận hưởng âm nhạc",
+  "intro_description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sagittis enim purus sed phasellus. Cursus ornare id scelerisque aliquam.",
+  "language": "Ngôn ngữ",
+  "settings": "Cài đặt",
+  "theme": "Giao diện",
+  "english": "Tiếng Anh",
+  "vietnamese": "Tiếng Việt"
+}

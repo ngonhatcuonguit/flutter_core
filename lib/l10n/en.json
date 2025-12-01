@@ -1,0 +1,16 @@
+{
+  "hello": "Hello",
+  "welcome": "Welcome to our app!",
+  "get_started": "Get Started",
+  "choose_mode": "Choose Mode",
+  "dark_mode": "Dark Mode",
+  "light_mode": "Light Mode",
+  "continue": "Continue",
+  "enjoy_listening": "Enjoy listening to music",
+  "intro_description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sagittis enim purus sed phasellus. Cursus ornare id scelerisque aliquam.",
+  "language": "Language",
+  "settings": "Settings",
+  "theme": "Theme",
+  "english": "English",
+  "vietnamese": "Vietnamese"
+}
