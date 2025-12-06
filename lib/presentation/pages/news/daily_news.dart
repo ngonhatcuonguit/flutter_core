@@ -3,7 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_core_project/presentation/bloc/article/remote/remote_article_bloc.dart';
 import 'package:flutter_core_project/presentation/bloc/article/remote/remote_article_state.dart';
 import 'package:flutter_core_project/presentation/widgets/appbar/app_bar.dart';
+import 'package:flutter_core_project/services/network_service.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:flutter_core_project/presentation/widgets/no_internet_ui.dart';
 import '../../../core/configs/assets/app_vectors.dart';
 import '../../bloc/article/remote/remote_article_event.dart';
 import '../../widgets/article_widget.dart';
@@ -16,30 +18,67 @@ class DailyNews extends StatefulWidget {
 }
 
 class _DailyNewsState extends State<DailyNews> {
-  bool _hasError = false;
+  bool _hasNoInternet = false;
 
   @override
   void initState() {
     super.initState();
-    // Delay to ensure context is ready
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        try {
-          final bloc = context.read<RemoteArticlesBloc>();
-          if (!bloc.isClosed) {
-            bloc.add(const GetArticles());
-          }
-        } catch (e) {
-          // BLoC not provided, handle gracefully
-          debugPrint('RemoteArticlesBloc error: $e');
-          if (mounted) {
-            setState(() {
-              _hasError = true;
-            });
-          }
-        }
+        _checkNetworkAndLoadArticles();
       }
     });
+  }
+
+  Future<void> _checkNetworkAndLoadArticles() async {
+    debugPrint('🔍 Checking network...');
+    final hasInternet = await NetworkService().hasInternetConnection();
+    debugPrint('📶 Has Internet: $hasInternet');
+
+    if (!hasInternet) {
+      debugPrint('❌ No internet detected');
+      if (mounted) {
+        setState(() {
+          _hasNoInternet = true;
+        });
+      }
+      return;
+    }
+
+    debugPrint('✅ Internet available, loading articles...');
+    if (mounted) {
+      setState(() {
+        _hasNoInternet = false;
+      });
+      try {
+        final bloc = context.read<RemoteArticlesBloc>();
+        if (!bloc.isClosed) {
+          debugPrint('📰 Dispatching GetArticles event');
+          bloc.add(const GetArticles());
+        }
+      } catch (e) {
+        debugPrint('❌ RemoteArticlesBloc error: $e');
+      }
+    }
+  }
+
+  Widget _buildNoInternetUI() {
+    return NoInternetUI(
+      onRetry: () async {
+        debugPrint('🔄 User tapped Retry');
+        await _checkNetworkAndLoadArticles();
+      },
+      onDismiss: () {
+        debugPrint('❌ User dismissed No Internet UI');
+        // Simply hide the no internet UI
+        // User can still navigate to other tabs freely
+        if (mounted) {
+          setState(() {
+            _hasNoInternet = false;
+          });
+        }
+      },
+    );
   }
 
   @override
@@ -52,63 +91,9 @@ class _DailyNewsState extends State<DailyNews> {
           width: 30,
         ),
       ),
-      body: _hasError ? _buildErrorWidget() : _buildBody(),
-    );
-  }
-
-  Widget _buildErrorWidget() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 80,
-              color: Colors.grey[400],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Unable to load news',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'API service is not available.\nPlease check your configuration.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey[600],
-                  ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () {
-                setState(() {
-                  _hasError = false;
-                });
-                // Retry loading
-                try {
-                  final bloc = context.read<RemoteArticlesBloc>();
-                  if (!bloc.isClosed) {
-                    bloc.add(const GetArticles());
-                  }
-                } catch (e) {
-                  debugPrint('Retry failed: $e');
-                  setState(() {
-                    _hasError = true;
-                  });
-                }
-              },
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
-            ),
-          ],
-        ),
-      ),
+      body: _hasNoInternet ? _buildNoInternetUI() : _buildBody(),
+      // Ensure body is not blocking interactions
+      resizeToAvoidBottomInset: false,
     );
   }
 
@@ -148,10 +133,10 @@ class _DailyNewsState extends State<DailyNews> {
                   const SizedBox(height: 24),
                   ElevatedButton.icon(
                     onPressed: () {
-                      final bloc = context.read<RemoteArticlesBloc>();
-                      if (!bloc.isClosed) {
-                        bloc.add(const GetArticles());
-                      }
+                      setState(() {
+                        _hasNoInternet = false;
+                      });
+                      _checkNetworkAndLoadArticles();
                     },
                     icon: const Icon(Icons.refresh),
                     label: const Text('Retry'),
@@ -202,7 +187,45 @@ class _DailyNewsState extends State<DailyNews> {
             },
           );
         }
-        return const SizedBox();
+
+        // Default state: Show empty state with action to load
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.article_outlined,
+                  size: 80,
+                  color: Colors.grey[400],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Welcome to Daily News',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Tap the button below to load latest articles.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.grey[600],
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: _checkNetworkAndLoadArticles,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Load Articles'),
+                ),
+              ],
+            ),
+          ),
+        );
       },
     );
   }

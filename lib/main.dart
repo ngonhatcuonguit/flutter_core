@@ -6,7 +6,9 @@ import 'package:flutter_core_project/injection_container.dart';
 import 'package:flutter_core_project/presentation/bloc/article/remote/remote_article_bloc.dart';
 import 'package:flutter_core_project/presentation/bloc/article/remote/remote_article_event.dart';
 import 'package:flutter_core_project/presentation/pages/splash/splash.dart';
+import 'package:flutter_core_project/presentation/widgets/network/network_status_banner.dart';
 import 'package:flutter_core_project/services/localization_service.dart';
+import 'package:flutter_core_project/services/network_service.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:path_provider/path_provider.dart';
@@ -26,6 +28,9 @@ Future<void> main() async {
 
   // Initialize the dependency injection
   await initializeDependencies();
+
+  // Initialize network service
+  await NetworkService().init();
 
   runApp(const MyApp());
 }
@@ -67,7 +72,9 @@ class MyApp extends StatelessWidget {
                 ],
                 locale: locale,
 
-                home: const SplashPage(),
+                home: NetworkStatusBanner(
+                  child: const SplashPage(),
+                ),
               );
             },
           );

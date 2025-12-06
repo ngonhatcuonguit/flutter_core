@@ -44,6 +44,8 @@ dependencies:
   flutter_hooks:
   #cached image
   cached_network_image:
+  #Network connectivity
+  connectivity_plus: ^5.0.0
 
 dev_dependencies:
   flutter_test:
