@@ -13,6 +13,22 @@ class ArticleWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Guard against null article
+    if (article == null) {
+      return Container(
+        padding: const EdgeInsetsDirectional.only(
+          start: 14,
+          end: 14,
+          top: 10,
+          bottom: 10,
+        ),
+        height: (MediaQuery.of(context).size.width / 3) * 1.6,
+        child: const Center(
+          child: Text('Article data not available'),
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsetsDirectional.only(
         start: 14,
@@ -32,8 +48,46 @@ class ArticleWidget extends StatelessWidget {
 
   Widget _buildImage(BuildContext context) {
     double screenWidth = MediaQuery.of(context).size.width;
+    final imageUrl = article?.urlToImage ?? "";
+
+    // Check if URL is valid and not empty
+    final isValidUrl = imageUrl.isNotEmpty &&
+        (imageUrl.startsWith('http://') || imageUrl.startsWith('https://'));
+
+    return _buildImageContainer(
+      context,
+      screenWidth,
+      isValidUrl ? imageUrl : null,
+    );
+  }
+
+  Widget _buildImageContainer(
+    BuildContext context,
+    double screenWidth,
+    String? imageUrl,
+  ) {
+    // If no valid URL, show placeholder
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return Padding(
+        padding: const EdgeInsetsDirectional.only(
+          end: 10,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            height: double.maxFinite,
+            width: screenWidth / 3,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+            ),
+            child: const Icon(Icons.image_not_supported, color: Colors.grey),
+          ),
+        ),
+      );
+    }
+
     return CachedNetworkImage(
-      imageUrl: article!.urlToImage ?? "",
+      imageUrl: imageUrl,
       imageBuilder: (context, imageProvider) => Padding(
         padding: const EdgeInsetsDirectional.only(
           end: 10,
@@ -88,6 +142,9 @@ class ArticleWidget extends StatelessWidget {
   }
 
   Widget _buildTitleAndDescription(BuildContext context) {
+    // article is guaranteed non-null at this point due to null check in build()
+    final articleData = article!;
+
     return Expanded(
       child: Padding(
         padding: const EdgeInsetsDirectional.symmetric(
@@ -99,7 +156,7 @@ class ArticleWidget extends StatelessWidget {
           children: [
             //title
             Text(
-              article?.title ?? "Default Title",
+              articleData.title ?? "Default Title",
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
@@ -112,10 +169,11 @@ class ArticleWidget extends StatelessWidget {
             //description
             Expanded(
               child: Padding(
-                padding: EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.only(top: 4),
                 child: Text(
-                  article!.description ?? "",
+                  articleData.description ?? "",
                   maxLines: 2,
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
             ),
@@ -124,16 +182,16 @@ class ArticleWidget extends StatelessWidget {
             Row(
               children: [
                 const Icon(Icons.timeline_outlined, size: 16),
-                const SizedBox(
-                  width: 54
-                ),
-                Text(
-                  article!.publishedAt != null
-                      ? article!.publishedAt!
-                      : "",
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.black54,
+                const SizedBox(width: 54),
+                Expanded(
+                  child: Text(
+                    articleData.publishedAt ?? "",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.black54,
+                    ),
                   ),
                 ),
               ],
@@ -143,5 +201,4 @@ class ArticleWidget extends StatelessWidget {
       ),
     );
   }
-
 }
