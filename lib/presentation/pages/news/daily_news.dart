@@ -103,6 +103,14 @@ class _DailyNewsState extends State<DailyNews> {
         if (state is RemoteArticleLoading) {
           return const Center(child: CircularProgressIndicator());
         } else if (state is RemoteArticleError) {
+          // Parse error message to detect connection issues
+          final errorMessage = state.error?.toString() ?? '';
+          final isConnectionError =
+              errorMessage.contains('Failed host lookup') ||
+                  errorMessage.contains('SocketException') ||
+                  errorMessage.contains('connection error') ||
+                  errorMessage.contains('No address associated');
+
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(24.0),
@@ -110,13 +118,15 @@ class _DailyNewsState extends State<DailyNews> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
-                    Icons.cloud_off,
+                    isConnectionError ? Icons.wifi_off : Icons.cloud_off,
                     size: 80,
                     color: Colors.grey[400],
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Failed to load articles',
+                    isConnectionError
+                        ? 'No Internet Connection'
+                        : 'Failed to load articles',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
@@ -124,12 +134,43 @@ class _DailyNewsState extends State<DailyNews> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Please check your internet connection\nand try again.',
+                    isConnectionError
+                        ? 'Please check your internet connection.\nMake sure you can access newsapi.org.'
+                        : 'Something went wrong.\nPlease try again later.',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Colors.grey[600],
                         ),
                     textAlign: TextAlign.center,
                   ),
+                  if (isConnectionError) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange.shade200),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.info_outline,
+                              color: Colors.orange.shade700, size: 20),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              'DNS lookup failed for newsapi.org',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.orange.shade900,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 24),
                   ElevatedButton.icon(
                     onPressed: () {

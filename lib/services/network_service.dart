@@ -1,6 +1,7 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'dart:io';
 
 /// Enum for network status
 enum NetworkStatus {
@@ -69,7 +70,22 @@ class NetworkService {
   Future<bool> hasInternetConnection() async {
     try {
       final result = await _connectivity.checkConnectivity();
-      return result != ConnectivityResult.none;
+      if (result == ConnectivityResult.none) {
+        return false;
+      }
+
+      // Actually test internet connectivity by DNS lookup
+      try {
+        final response = await InternetAddress.lookup('google.com')
+            .timeout(const Duration(seconds: 5));
+        return response.isNotEmpty && response[0].rawAddress.isNotEmpty;
+      } on SocketException catch (e) {
+        debugPrint('⚠️ DNS lookup failed: $e');
+        return false;
+      } on TimeoutException catch (e) {
+        debugPrint('⚠️ Connection timeout: $e');
+        return false;
+      }
     } catch (e) {
       debugPrint('hasInternetConnection error: $e');
       return false;
