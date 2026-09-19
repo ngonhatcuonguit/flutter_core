@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_core_project/core/configs/api_error_config.dart';
 import 'package:flutter_core_project/core/configs/app_config.dart';
 import 'package:flutter_core_project/data/data_sources/remote/adjustment_report_api_service.dart';
+import 'package:flutter_core_project/data/data_sources/remote/festival_api_service.dart';
 import 'package:flutter_core_project/data/data_sources/remote/login_api_service.dart';
 import 'package:flutter_core_project/data/data_sources/remote/level_up_api_service.dart';
 import 'package:flutter_core_project/data/data_sources/remote/news_api_service.dart';
@@ -26,6 +27,8 @@ import 'package:flutter_core_project/presentation/bloc/article/remote/remote_art
 import 'package:flutter_core_project/presentation/bloc/timesheet/remote/remote_timesheet_bloc.dart';
 import 'package:flutter_core_project/services/api_error_handler.dart';
 import 'package:flutter_core_project/services/auth_service.dart';
+import 'package:flutter_core_project/services/festival_auth_service.dart';
+import 'package:flutter_core_project/services/festival_gate_store.dart';
 import 'package:flutter_core_project/services/navigation_service.dart';
 import 'package:get_it/get_it.dart';
 
@@ -156,6 +159,19 @@ Dio _buildThpDio() {
   return dio;
 }
 
+Dio _buildFestivalDio() {
+  final timeout = Duration(milliseconds: AppConfig.timeoutMs);
+  return Dio(
+    BaseOptions(
+      baseUrl: AppConfig.festivalBaseUrl,
+      connectTimeout: timeout,
+      receiveTimeout: timeout,
+      sendTimeout: timeout,
+      headers: const {'Accept': 'application/json'},
+    ),
+  );
+}
+
 Future<void> initializeDependencies() async {
   setupApiErrorConfigs();
 
@@ -165,6 +181,16 @@ Future<void> initializeDependencies() async {
   final thpDio = _buildThpDio();
 
   _registerIfAbsent<LoginApiService>(() => LoginApiService(thpDio));
+  _registerIfAbsent<FestivalApiService>(
+    () => FestivalApiService(_buildFestivalDio()),
+  );
+  _registerIfAbsent<FestivalTokenStore>(SecureFestivalTokenStore.new);
+  _registerIfAbsent<FestivalGateStore>(
+    SharedPreferencesFestivalGateStore.new,
+  );
+  _registerIfAbsent<FestivalAuthService>(
+    () => FestivalAuthService(sl(), sl()),
+  );
   _registerIfAbsent<LevelUpApiService>(() => LevelUpApiService(thpDio));
   _registerIfAbsent<NewsApiService>(() => NewsApiService(sl()));
   _registerIfAbsent<TimesheetApiService>(() => TimesheetApiService(thpDio));

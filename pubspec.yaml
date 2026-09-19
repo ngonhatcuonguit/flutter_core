@@ -48,6 +48,10 @@ dependencies:
   flutter_html: ^3.0.0-beta.2
   #Network connectivity
   connectivity_plus: ^5.0.0
+  # QR scanner for THP Festival guest check-in (Flutter 3.19 / Dart 3.3 compatible)
+  mobile_scanner: 5.1.1
+  # Store the Festival access token separately from the main app session.
+  flutter_secure_storage: 9.2.4
 
   # Firebase — versions compatible with Flutter 3.19 / Dart 3.3
   firebase_core: ^2.32.0
@@ -117,9 +121,9 @@ flutter_native_splash:
   color: "#FFFFFF"
   color_dark: "#FFFFFF"
 
-  # Icon launcher của app — center gravity để logo không bị stretch/crop
-  image: assets/images/app_launcher_icon.png
-  image_dark: assets/images/app_launcher_icon.png
+  # Logo splash riêng 432px, giữ đúng tỉ lệ và không dùng ảnh launcher 192px.
+  image: assets/images/splash_logo_regular.png
+  image_dark: assets/images/splash_logo_regular.png
 
   # Hiển thị logo ở giữa màn hình, không scale lên đầy màn hình
   android_gravity: center
@@ -129,16 +133,15 @@ flutter_native_splash:
   fullscreen: false
 
   # Android 12+ Splash API
-  # ⚠️  Adaptive icon: logo phải nằm trong vùng 66% trung tâm của ảnh
-  #     (1152×1152px, logo an toàn trong vòng tròn 672×672px ở giữa).
-  #     Nếu logo bị cut, hãy cập nhật app_launcher_icon.png với padding 17% mỗi cạnh,
-  #     sau đó chạy: dart run flutter_native_splash:create
+  # Ảnh 1152px có artwork 572x592px nằm trọn trong safe-zone Android 12,
+  # nên system mask không thể cắt các cung ngoài của logo.
   android_12:
     color: "#FFFFFF"
     color_dark: "#FFFFFF"
-    image: assets/images/app_launcher_icon.png
-    image_dark: assets/images/app_launcher_icon.png
-    icon_background_color: "#FFFFFF"
-    icon_background_color_dark: "#FFFFFF"
+    image: assets/images/splash_logo_android12.png
+    image_dark: assets/images/splash_logo_android12.png
+
+  # Splash web không nằm trong phạm vi app mobile.
+  web: false
 
 #    flutter build appbundle --flavor prod -t lib/main_prod.dart

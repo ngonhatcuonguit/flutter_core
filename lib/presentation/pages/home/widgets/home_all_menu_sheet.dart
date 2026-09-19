@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_core_project/common/helpers/is_dark_mode.dart';
 import 'package:flutter_core_project/presentation/intro/pages/get_started.dart';
 import 'package:flutter_core_project/presentation/pages/leave_request/leave_request_page.dart';
+import 'package:flutter_core_project/presentation/pages/festival/festival_entry.dart';
 import 'package:flutter_core_project/presentation/pages/level_up/level_up_exam_list_page.dart';
 import 'package:flutter_core_project/presentation/pages/profile/profile_page.dart';
 import 'package:flutter_core_project/presentation/pages/request_history/request_history_page.dart';
@@ -217,6 +218,20 @@ class _AllMenuSheetState extends State<_AllMenuSheet> {
           navigator.push(
             MaterialPageRoute(builder: (_) => const LevelUpExamListPage()),
           );
+        },
+      ),
+      _SheetItem(
+        icon: Icons.festival_outlined,
+        label: context.tr('festival_menu'),
+        iconColor: const Color(0xFF007D55),
+        bgLight: const Color(0xFFECFDF5),
+        bgDark: const Color(0xFF063F35),
+        onTap: () {
+          final navigator = Navigator.of(context);
+          navigator.pop();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (navigator.mounted) FestivalEntry.open(navigator.context);
+          });
         },
       ),
       _SheetItem(

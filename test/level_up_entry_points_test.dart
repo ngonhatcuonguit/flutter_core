@@ -52,6 +52,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Chấm điểm LevelUp'), findsOneWidget);
+    expect(find.text('THP Festival'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     await tester.tap(find.text('Chấm điểm LevelUp'));
@@ -76,6 +77,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('LevelUp Grading'), findsOneWidget);
+    expect(find.text('THP Festival'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -101,6 +103,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('menu_levelup_grading'), findsOneWidget);
+    expect(find.text('festival_menu'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     await tester.tap(find.text('menu_levelup_grading'));

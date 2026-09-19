@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_core_project/common/helpers/is_dark_mode.dart';
 import 'package:flutter_core_project/presentation/pages/leave_request/leave_request_page.dart';
+import 'package:flutter_core_project/presentation/pages/festival/festival_entry.dart';
 import 'package:flutter_core_project/presentation/pages/level_up/level_up_exam_list_page.dart';
 import 'package:flutter_core_project/presentation/pages/request_history/request_history_page.dart';
 import 'package:flutter_core_project/presentation/pages/timesheet/timesheet_page.dart';
@@ -46,6 +47,14 @@ class _ServicePageState extends State<ServicePage> {
             MaterialPageRoute(builder: (_) => const LevelUpExamListPage()),
           );
         },
+      ),
+      _ServiceItem(
+        key: 'festival_menu',
+        icon: Icons.festival_outlined,
+        bgColor: const Color(0xFFECFDF5),
+        bgColorDark: const Color(0xFF063F35),
+        accentColor: const Color(0xFF007D55),
+        action: () => FestivalEntry.open(context),
       ),
       _ServiceItem(
         key: 'service_leave_request',
@@ -253,7 +262,7 @@ class _ServicePageState extends State<ServicePage> {
 
 class _ServiceItem {
   final String key;
-  final String icon;
+  final Object icon;
   final Color bgColor;
   final Color bgColorDark;
   final Color accentColor;
@@ -308,15 +317,21 @@ class _ServiceCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Center(
-                child: SvgPicture.asset(
-                  service.icon,
-                  width: 32,
-                  height: 32,
-                  colorFilter: ColorFilter.mode(
-                    service.accentColor,
-                    BlendMode.srcIn,
-                  ),
-                ),
+                child: service.icon is IconData
+                    ? Icon(
+                        service.icon as IconData,
+                        size: 34,
+                        color: service.accentColor,
+                      )
+                    : SvgPicture.asset(
+                        service.icon as String,
+                        width: 32,
+                        height: 32,
+                        colorFilter: ColorFilter.mode(
+                          service.accentColor,
+                          BlendMode.srcIn,
+                        ),
+                      ),
               ),
             ),
             const SizedBox(height: 12),

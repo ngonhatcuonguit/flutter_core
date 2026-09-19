@@ -21,6 +21,11 @@ class AppConfig {
   static String get baseUrl =>
       _readEnv('API_BASE_URL') ?? 'https://mobile-app.thp.com.vn';
 
+  /// Dedicated base URL for THP Festival. This client never shares the main
+  /// app's login session or bearer token.
+  static String get festivalBaseUrl =>
+      _readEnv('FESTIVAL_API_BASE_URL') ?? 'https://mobile-test.thp.com.vn';
+
   /// Display name shown in app title / debug banner
   static String get appTitle => _readEnv('APP_TITLE') ?? 'My THP';
 
