@@ -10,6 +10,7 @@ import 'package:flutter_core_project/injection_container.dart';
 import 'package:flutter_core_project/presentation/pages/main/main_screen.dart';
 import 'package:flutter_core_project/services/auth_service.dart';
 import 'package:flutter_core_project/services/firebase_service.dart';
+import 'package:flutter_core_project/services/login_credential_store.dart';
 import 'package:flutter_core_project/services/localization_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -22,14 +23,23 @@ final Uri _iosStoreUrl = Uri.parse(
 
 class SigninPage extends StatefulWidget {
   final LoginApiService? apiService;
+  final LoginCredentialStore? credentialStore;
+  final WidgetBuilder? authenticatedPageBuilder;
 
-  const SigninPage({super.key, this.apiService});
+  const SigninPage({
+    super.key,
+    this.apiService,
+    this.credentialStore,
+    this.authenticatedPageBuilder,
+  });
 
   @override
   State<SigninPage> createState() => _SigninPageState();
 }
 
 class _SigninPageState extends State<SigninPage> {
+  late final LoginCredentialStore _credentialStore =
+      widget.credentialStore ?? SecureLoginCredentialStore.mainApp();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _usernameFocus = FocusNode();
@@ -46,6 +56,37 @@ class _SigninPageState extends State<SigninPage> {
         () => setState(() => _usernameFocused = _usernameFocus.hasFocus));
     _passwordFocus.addListener(
         () => setState(() => _passwordFocused = _passwordFocus.hasFocus));
+    unawaited(_restoreCredentials());
+  }
+
+  Future<void> _restoreCredentials() async {
+    try {
+      final credentials = await _credentialStore.read();
+      if (!mounted || credentials == null) return;
+      if (_usernameController.text.isNotEmpty ||
+          _passwordController.text.isNotEmpty) {
+        return;
+      }
+      _usernameController.text = credentials.username;
+      _passwordController.text = credentials.password;
+    } catch (error) {
+      debugPrint(
+        '[Login] Không thể đọc thông tin đăng nhập đã lưu: '
+        '${error.runtimeType}',
+      );
+    }
+  }
+
+  Future<void> _rememberCredentials(String username, String password) async {
+    try {
+      await _credentialStore.write(
+        LoginCredentials(username: username, password: password),
+      );
+    } catch (error) {
+      debugPrint(
+        '[Login] Không thể lưu thông tin đăng nhập: ${error.runtimeType}',
+      );
+    }
   }
 
   @override
@@ -103,10 +144,14 @@ class _SigninPageState extends State<SigninPage> {
           position: result.position,
           department: result.department,
         );
+        await _rememberCredentials(username, password);
         if (!mounted) return;
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const MainScreen()),
+          MaterialPageRoute(
+            builder:
+                widget.authenticatedPageBuilder ?? (_) => const MainScreen(),
+          ),
         );
         // Gửi FCM token cho account vừa đăng nhập (kể cả khi đổi sang account khác).
         // Đây là tác vụ phụ: không được làm fail luồng login.

@@ -29,6 +29,7 @@ import 'package:flutter_core_project/services/api_error_handler.dart';
 import 'package:flutter_core_project/services/auth_service.dart';
 import 'package:flutter_core_project/services/festival_auth_service.dart';
 import 'package:flutter_core_project/services/festival_gate_store.dart';
+import 'package:flutter_core_project/services/login_credential_store.dart';
 import 'package:flutter_core_project/services/navigation_service.dart';
 import 'package:get_it/get_it.dart';
 
@@ -189,7 +190,11 @@ Future<void> initializeDependencies() async {
     SharedPreferencesFestivalGateStore.new,
   );
   _registerIfAbsent<FestivalAuthService>(
-    () => FestivalAuthService(sl(), sl()),
+    () => FestivalAuthService(
+      sl(),
+      sl(),
+      credentialStore: SecureLoginCredentialStore.festival(),
+    ),
   );
   _registerIfAbsent<LevelUpApiService>(() => LevelUpApiService(thpDio));
   _registerIfAbsent<NewsApiService>(() => NewsApiService(sl()));

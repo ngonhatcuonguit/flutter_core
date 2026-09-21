@@ -100,7 +100,8 @@ class AuthService {
     await prefs.remove(_tokenKey);
   }
 
-  /// Logout — clear token và thông tin đăng nhập, không xoá settings/local data.
+  /// Logout — clear active session/profile, but keep secure remembered
+  /// credentials so the login form can be restored next time.
   static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_isLoggedInKey);

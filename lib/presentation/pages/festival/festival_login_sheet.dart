@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_core_project/common/helpers/is_dark_mode.dart';
 import 'package:flutter_core_project/core/configs/theme/app_colors.dart';
@@ -38,6 +40,27 @@ class _FestivalLoginSheetState extends State<_FestivalLoginSheet> {
   bool _obscurePassword = true;
   bool _submitting = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_restoreCredentials());
+  }
+
+  Future<void> _restoreCredentials() async {
+    try {
+      final credentials = await widget.authService.getRememberedCredentials();
+      if (!mounted || credentials == null) return;
+      if (_usernameController.text.isNotEmpty ||
+          _passwordController.text.isNotEmpty) {
+        return;
+      }
+      _usernameController.text = credentials.username;
+      _passwordController.text = credentials.password;
+    } catch (_) {
+      // The form remains usable if secure storage is temporarily unavailable.
+    }
+  }
 
   @override
   void dispose() {

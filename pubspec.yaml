@@ -50,7 +50,7 @@ dependencies:
   connectivity_plus: ^5.0.0
   # QR scanner for THP Festival guest check-in (Flutter 3.19 / Dart 3.3 compatible)
   mobile_scanner: 5.1.1
-  # Store the Festival access token separately from the main app session.
+  # Store Festival tokens and remembered login credentials securely.
   flutter_secure_storage: 9.2.4
 
   # Firebase — versions compatible with Flutter 3.19 / Dart 3.3
