@@ -1004,6 +1004,9 @@ class _FestivalResultView extends StatelessWidget {
     final vipLevel = checkInResult?.vipLevel ?? giftResult?.vipLevel;
     final vipName = checkInResult?.vipName ?? giftResult?.vipName;
     final guestCode = checkInResult?.guestCode ?? giftResult?.guestCode;
+    final tableName = checkInResult?.tableName ?? giftResult?.tableName;
+    final tableSeat = checkInResult?.tableSeat ?? giftResult?.tableSeat;
+    final giftNote = giftResult?.giftNote;
     final message = checkInResult?.message ?? giftResult?.message ?? '';
     final actionTime = isGift
         ? giftResult?.giftReceivedDate
@@ -1113,6 +1116,17 @@ class _FestivalResultView extends StatelessWidget {
                     ),
                   ),
                 ],
+                if (tableName != null || tableSeat != null) ...[
+                  const SizedBox(height: 16),
+                  _FestivalSeatingCard(
+                    tableName: tableName,
+                    tableSeat: tableSeat,
+                  ),
+                ],
+                if (giftNote != null) ...[
+                  const SizedBox(height: 12),
+                  _FestivalGiftInformationCard(giftNote: giftNote),
+                ],
                 if (message.isNotEmpty) ...[
                   const SizedBox(height: 14),
                   Text(
@@ -1147,6 +1161,150 @@ class _FestivalResultView extends StatelessWidget {
               ),
             ),
             style: _festivalPrimaryButtonStyle(height: 54),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FestivalSeatingCard extends StatelessWidget {
+  final String? tableName;
+  final String? tableSeat;
+
+  const _FestivalSeatingCard({this.tableName, this.tableSeat});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    const color = AppColors.primary;
+    return Container(
+      key: const ValueKey('festival_seating_info'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withAlpha(context.isDarkMode ? 46 : 20),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withAlpha(71)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.event_seat_rounded, color: color, size: 22),
+              const SizedBox(width: 8),
+              Text(
+                context.tr('festival_seating_location'),
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (tableName != null)
+                Expanded(
+                  child: _FestivalLocationValue(
+                    label: context.tr('festival_table_name'),
+                    value: tableName!,
+                  ),
+                ),
+              if (tableName != null && tableSeat != null)
+                const SizedBox(width: 12),
+              if (tableSeat != null)
+                Expanded(
+                  child: _FestivalLocationValue(
+                    label: context.tr('festival_table_seat'),
+                    value: tableSeat!,
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FestivalLocationValue extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _FestivalLocationValue({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FestivalGiftInformationCard extends StatelessWidget {
+  final String giftNote;
+
+  const _FestivalGiftInformationCard({required this.giftNote});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = theme.colorScheme.secondary;
+    return Container(
+      key: const ValueKey('festival_gift_information'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withAlpha(context.isDarkMode ? 46 : 20),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withAlpha(71)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.card_giftcard_rounded, color: color, size: 24),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  context.tr('festival_gift_information'),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  giftNote,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

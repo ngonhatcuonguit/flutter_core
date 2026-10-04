@@ -321,5 +321,9 @@
   "festival_gift_success": "Trao quà thành công",
   "festival_gift_already_received": "Khách đã nhận quà",
   "festival_gift_error": "Chưa thể xác nhận nhận quà",
+  "festival_seating_location": "Vị trí chỗ ngồi",
+  "festival_table_name": "Bàn",
+  "festival_table_seat": "Ghế",
+  "festival_gift_information": "Thông tin quà tặng",
   "festival_continue_gift": "Tiếp tục phát quà cho khách khác"
 }

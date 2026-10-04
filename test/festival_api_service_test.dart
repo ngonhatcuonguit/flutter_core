@@ -47,6 +47,8 @@ void main() {
                 'VIP': 2,
                 'VIPName': 'VIP',
                 'GuestCode': 'VIP001',
+                'TableName': 'Bàn 01',
+                'TableSeat': 'Ghế 02',
               },
             });
           case '/api/mobile/gift-checkin':
@@ -64,6 +66,9 @@ void main() {
                 'GiftStatus': 1,
                 'GiftReceivedDate': '09:10:00 19/09/2026',
                 'GiftGateName': 'Cổng VIP 1',
+                'TableName': 'Bàn 01',
+                'TableSeat': 'Ghế 02',
+                'GiftNote': 'Bộ quà tặng VIP đối tác',
               },
             });
           default:
@@ -101,11 +106,17 @@ void main() {
       expect(result.position, 'Khách mời');
       expect(result.guestCode, 'VIP001');
       expect(result.gateName, 'Cổng VIP 1');
+      expect(result.tableName, 'Bàn 01');
+      expect(result.tableSeat, 'Ghế 02');
       expect(giftResult.success, isTrue);
       expect(giftResult.alreadyReceived, isFalse);
       expect(giftResult.fullName, 'Ông Nguyễn Văn A');
       expect(giftResult.giftReceivedDate, '09:10:00 19/09/2026');
       expect(giftResult.giftGateName, 'Cổng VIP 1');
+      expect(giftResult.tableName, 'Bàn 01');
+      expect(giftResult.tableSeat, 'Ghế 02');
+      expect(giftResult.giftStatus, 1);
+      expect(giftResult.giftNote, 'Bộ quà tặng VIP đối tác');
 
       final login = harness.adapter.requests[0];
       expect(login.method, 'POST');

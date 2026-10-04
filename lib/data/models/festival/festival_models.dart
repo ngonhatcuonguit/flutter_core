@@ -114,6 +114,8 @@ class FestivalCheckInResult {
   final String? vipName;
   final String? checkInTime;
   final String? gateName;
+  final String? tableName;
+  final String? tableSeat;
 
   const FestivalCheckInResult({
     required this.success,
@@ -129,6 +131,8 @@ class FestivalCheckInResult {
     this.vipName,
     this.checkInTime,
     this.gateName,
+    this.tableName,
+    this.tableSeat,
   });
 
   factory FestivalCheckInResult.fromJson(Map<String, dynamic> json) {
@@ -148,6 +152,10 @@ class FestivalCheckInResult {
       previousGate: _stringValue(_read(json, 'PreviousGate')),
       checkInTime: _stringValue(_read(json, 'CheckInTime')),
       gateName: _stringValue(_read(json, 'GateName')),
+      tableName: _stringValue(_read(source, 'TableName')) ??
+          _stringValue(_read(json, 'TableName')),
+      tableSeat: _stringValue(_read(source, 'TableSeat')) ??
+          _stringValue(_read(json, 'TableSeat')),
     );
   }
 }
@@ -164,6 +172,10 @@ class FestivalGiftCheckInResult {
   final String? vipName;
   final String? giftReceivedDate;
   final String? giftGateName;
+  final String? tableName;
+  final String? tableSeat;
+  final int? giftStatus;
+  final String? giftNote;
 
   const FestivalGiftCheckInResult({
     required this.success,
@@ -177,6 +189,10 @@ class FestivalGiftCheckInResult {
     this.vipName,
     this.giftReceivedDate,
     this.giftGateName,
+    this.tableName,
+    this.tableSeat,
+    this.giftStatus,
+    this.giftNote,
   });
 
   factory FestivalGiftCheckInResult.fromJson(Map<String, dynamic> json) {
@@ -198,6 +214,14 @@ class FestivalGiftCheckInResult {
       giftGateName: _stringValue(_read(source, 'GiftGateName')) ??
           _stringValue(_read(json, 'GiftGateName')) ??
           _stringValue(_read(json, 'PreviousGiftGateName')),
+      tableName: _stringValue(_read(source, 'TableName')) ??
+          _stringValue(_read(json, 'TableName')),
+      tableSeat: _stringValue(_read(source, 'TableSeat')) ??
+          _stringValue(_read(json, 'TableSeat')),
+      giftStatus: _intValue(_read(source, 'GiftStatus')) ??
+          _intValue(_read(json, 'GiftStatus')),
+      giftNote: _stringValue(_read(source, 'GiftNote')) ??
+          _stringValue(_read(json, 'GiftNote')),
     );
   }
 }

@@ -61,10 +61,16 @@ void main() {
 
     expect(find.text('Check-in thành công'), findsOneWidget);
     expect(find.text('Ông Nguyễn Văn A'), findsOneWidget);
+    expect(find.text('Vị trí chỗ ngồi'), findsOneWidget);
+    expect(find.text('Bàn 01'), findsOneWidget);
+    expect(find.text('Ghế 02'), findsOneWidget);
     expect(api.lastCode, '0901234567');
     expect(api.lastGateName, 'Cổng VIP 1');
     expect(api.lastNotes, contains('Manual'));
 
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('festival_continue_checkin')),
+    );
     await tester.tap(find.byKey(const ValueKey('festival_continue_checkin')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('festival_manual_input')), findsOneWidget);
@@ -80,6 +86,9 @@ void main() {
     expect(api.lastNotes, contains('QR'));
     expect(find.text('Check-in thành công'), findsOneWidget);
 
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('festival_continue_checkin')),
+    );
     await tester.tap(find.byKey(const ValueKey('festival_continue_checkin')));
     await tester.pumpAndSettle();
     final initializationsBeforeOperationChange = scannerInitializations;
@@ -98,7 +107,12 @@ void main() {
     expect(api.lastGateName, 'Cổng VIP 1');
     expect(api.lastNotes, contains('QR gift'));
     expect(find.text('Trao quà thành công'), findsOneWidget);
+    expect(find.text('Thông tin quà tặng'), findsOneWidget);
+    expect(find.text('Bộ quà tặng VIP đối tác'), findsOneWidget);
 
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('festival_continue_checkin')),
+    );
     await tester.tap(find.byKey(const ValueKey('festival_continue_checkin')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('festival_manual_mode')));
@@ -200,6 +214,8 @@ class _FakeFestivalApi extends FestivalApiService {
       fullName: 'Ông Nguyễn Văn A',
       company: 'THP',
       guestCode: 'QR001',
+      tableName: 'Bàn 01',
+      tableSeat: 'Ghế 02',
     );
   }
 
@@ -222,6 +238,10 @@ class _FakeFestivalApi extends FestivalApiService {
       guestCode: 'QR001',
       giftReceivedDate: '09:10',
       giftGateName: 'Cổng VIP 1',
+      tableName: 'Bàn 01',
+      tableSeat: 'Ghế 02',
+      giftStatus: 1,
+      giftNote: 'Bộ quà tặng VIP đối tác',
     );
   }
 }

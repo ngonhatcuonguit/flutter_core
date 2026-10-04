@@ -311,5 +311,9 @@
   "festival_gift_success": "Gift delivered successfully",
   "festival_gift_already_received": "Guest already received a gift",
   "festival_gift_error": "Gift redemption unsuccessful",
+  "festival_seating_location": "Seating location",
+  "festival_table_name": "Table",
+  "festival_table_seat": "Seat",
+  "festival_gift_information": "Gift information",
   "festival_continue_gift": "Serve the next guest"
 }
