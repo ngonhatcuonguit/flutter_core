@@ -146,6 +146,190 @@ class FestivalApiService {
     return FestivalGiftCheckInResult.fromJson(root);
   }
 
+  Future<FestivalHotlineGuest> searchGuestForSeating({
+    required String accessToken,
+    required int eventId,
+    required String keyword,
+  }) async {
+    final normalized = keyword.trim();
+    if (normalized.isEmpty || eventId <= 0) {
+      throw const FestivalApiException('Missing guest code or event ID.');
+    }
+    final root = await _requestJson(
+      '/api/mobile/HotlineSearchGuest',
+      accessToken: _requiredToken(accessToken),
+      queryParameters: {'eventId': eventId, 'keyword': normalized},
+    );
+    _requireSuccess(root, 'Unable to load guest seating.');
+    final data = _mapValue(readFestivalJsonValue(root, 'Data')) ?? root;
+    final guest = FestivalHotlineGuest.fromJson(data);
+    if (guest.id <= 0) {
+      throw const FestivalApiException(
+          'Guest seating response has no guest ID.');
+    }
+    return guest;
+  }
+
+  Future<List<FestivalPrefixColor>> getPrefixColors({
+    required String accessToken,
+    required int eventId,
+  }) async {
+    final root = await _requestJson(
+      '/api/mobile/GetPrefixColors',
+      accessToken: _requiredToken(accessToken),
+      queryParameters: {'eventId': eventId},
+    );
+    _requireSuccess(root, 'Unable to load guest colors.');
+    final raw = readFestivalJsonValue(root, 'Colors');
+    if (raw is! List) {
+      throw const FestivalApiException(
+          'Guest colors response has an invalid format.');
+    }
+    return raw
+        .whereType<Map>()
+        .map((item) =>
+            FestivalPrefixColor.fromJson(Map<String, dynamic>.from(item)))
+        .where((color) => color.prefixCode.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  Future<List<FestivalSeatingZone>> getSeatingZones({
+    required String accessToken,
+    required int eventId,
+    String? zone,
+  }) async {
+    final root = await _requestJson(
+      '/api/mobile/HotlineZonesAndTables',
+      accessToken: _requiredToken(accessToken),
+      queryParameters: {
+        'eventId': eventId,
+        if (zone != null && zone.trim().isNotEmpty) 'zone': zone.trim(),
+      },
+    );
+    _requireSuccess(root, 'Unable to load seating zones.');
+    final raw = readFestivalJsonValue(root, 'Zones');
+    if (raw is! List) {
+      throw const FestivalApiException(
+          'Seating zones response has an invalid format.');
+    }
+    return raw
+        .whereType<Map>()
+        .map((item) =>
+            FestivalSeatingZone.fromJson(Map<String, dynamic>.from(item)))
+        .where((zone) => zone.name.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  Future<String> assignSeatingTable({
+    required String accessToken,
+    required int eventId,
+    required int guestId,
+    required int tableId,
+    required int seatCount,
+    String staffName = 'My THP Festival',
+  }) {
+    _validateSeatingMutation(eventId, guestId, tableId, seatCount);
+    return _seatingMutation(
+      '/api/mobile/HotlineAssignTable',
+      accessToken: accessToken,
+      data: {
+        'EventId': eventId,
+        'GuestId': guestId,
+        'TableId': tableId,
+        'SeatCount': seatCount,
+        'SeatsDescription': '$seatCount chỗ',
+        'StaffName': staffName,
+        'Note': 'Gán bàn từ My THP Festival',
+      },
+    );
+  }
+
+  Future<String> changeSeatingTable({
+    required String accessToken,
+    required int eventId,
+    required int guestId,
+    required int oldTableId,
+    required int newTableId,
+    required int seatCount,
+    String staffName = 'My THP Festival',
+  }) {
+    _validateSeatingMutation(eventId, guestId, newTableId, seatCount);
+    if (oldTableId <= 0 || oldTableId == newTableId) {
+      throw const FestivalApiException(
+          'Choose another table to move the guest.');
+    }
+    return _seatingMutation(
+      '/api/mobile/HotlineChangeTable',
+      accessToken: accessToken,
+      data: {
+        'EventId': eventId,
+        'GuestId': guestId,
+        'OldTableId': oldTableId,
+        'NewTableId': newTableId,
+        'SeatCount': seatCount,
+        'SeatsDescription': '$seatCount chỗ',
+        'StaffName': staffName,
+        'Note': 'Chuyển bàn từ My THP Festival',
+      },
+    );
+  }
+
+  Future<String> unassignSeatingTable({
+    required String accessToken,
+    required int eventId,
+    required int guestId,
+    required int tableId,
+  }) {
+    _validateSeatingMutation(eventId, guestId, tableId, 1);
+    return _seatingMutation(
+      '/api/mobile/HotlineUnassignTable',
+      accessToken: accessToken,
+      data: {'EventId': eventId, 'GuestId': guestId, 'TableId': tableId},
+    );
+  }
+
+  Future<String> _seatingMutation(
+    String path, {
+    required String accessToken,
+    required Map<String, dynamic> data,
+  }) async {
+    final root = await _requestJson(
+      path,
+      method: 'POST',
+      data: data,
+      accessToken: _requiredToken(accessToken),
+    );
+    _requireSuccess(root, 'Unable to update guest seating.');
+    return _message(root) ?? 'Đã cập nhật bàn ngồi.';
+  }
+
+  String _requiredToken(String token) {
+    if (token.trim().isEmpty) throw const FestivalUnauthorizedException();
+    return token;
+  }
+
+  void _requireSuccess(Map<String, dynamic> root, String fallback) {
+    if (_isUnauthorizedPayload(root)) {
+      throw FestivalUnauthorizedException(message: _message(root));
+    }
+    if (!_isSuccessful(root)) {
+      throw FestivalApiException(_message(root) ?? fallback);
+    }
+  }
+
+  void _validateSeatingMutation(
+      int eventId, int guestId, int tableId, int seatCount) {
+    if (eventId <= 0 || guestId <= 0 || tableId <= 0 || seatCount <= 0) {
+      throw const FestivalApiException('Invalid guest, table or seat count.');
+    }
+  }
+
+  Map<String, dynamic>? _mapValue(Object? value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) return Map<String, dynamic>.from(value);
+    return null;
+  }
+
   Future<Map<String, dynamic>> _requestJson(
     String path, {
     String method = 'GET',
@@ -247,6 +431,8 @@ class FestivalApiService {
     final normalized = _message(json)?.toLowerCase() ?? '';
     final mentionsToken = normalized.contains('token') ||
         normalized.contains('phiên đăng nhập') ||
+        normalized.contains('phiên làm việc') ||
+        normalized.contains('đăng nhập lại') ||
         normalized.contains('session');
     final isRejected = normalized.contains('hết hạn') ||
         normalized.contains('không hợp lệ') ||

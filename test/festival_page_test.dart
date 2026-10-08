@@ -61,7 +61,7 @@ void main() {
 
     expect(find.text('Check-in thành công'), findsOneWidget);
     expect(find.text('Ông Nguyễn Văn A'), findsOneWidget);
-    expect(find.text('Vị trí chỗ ngồi'), findsOneWidget);
+    expect(find.text('Xếp bàn cho khách'), findsOneWidget);
     expect(find.text('Bàn 01'), findsOneWidget);
     expect(find.text('Ghế 02'), findsOneWidget);
     expect(api.lastCode, '0901234567');
@@ -107,7 +107,7 @@ void main() {
     expect(api.lastGateName, 'Cổng VIP 1');
     expect(api.lastNotes, contains('QR gift'));
     expect(find.text('Trao quà thành công'), findsOneWidget);
-    expect(find.text('Thông tin quà tặng'), findsOneWidget);
+    expect(find.text('Ghi chú quà tặng'), findsOneWidget);
     expect(find.text('Bộ quà tặng VIP đối tác'), findsOneWidget);
 
     await tester.ensureVisible(
@@ -150,6 +150,113 @@ void main() {
 
     expect(find.text('Nhận quà thủ công'), findsOneWidget);
     expect(tester.takeException(), isNull);
+    await tester.binding.setSurfaceSize(null);
+    await tester.tap(find.byKey(const ValueKey('festival_checkin_operation')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('festival_manual_input')),
+      'QR001',
+    );
+    await tester.tap(find.byKey(const ValueKey('festival_manual_submit')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('festival_guest_color')), findsOneWidget);
+    expect(find.text('Nhóm đỏ'), findsOneWidget);
+    final colorCard = tester.widget<Container>(
+      find.byKey(const ValueKey('festival_guest_color')),
+    );
+    expect((colorCard.decoration! as BoxDecoration).color,
+        const Color(0xFFFEE2E2));
+    expect(find.textContaining('Chưa xếp: 1'), findsOneWidget);
+
+    await tester
+        .ensureVisible(find.byKey(const ValueKey('festival_assign_table')));
+    await tester.tap(find.byKey(const ValueKey('festival_assign_table')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('festival_zone_Khu A')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('festival_table_2')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('festival_seat_count')), findsOneWidget);
+    expect(find.text('1'), findsWidgets);
+    await tester.tap(find.byKey(const ValueKey('festival_confirm_assign')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Bàn A-02'), findsOneWidget);
+    expect(find.textContaining('Chưa xếp: 0'), findsOneWidget);
+    await tester
+        .ensureVisible(find.byKey(const ValueKey('festival_change_table_2')));
+    await tester.tap(find.byKey(const ValueKey('festival_change_table_2')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('festival_zone_Khu B')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('festival_table_3')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Xác nhận').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Bàn B-01'), findsOneWidget);
+    await tester
+        .ensureVisible(find.byKey(const ValueKey('festival_remove_table_3')));
+    await tester.tap(find.byKey(const ValueKey('festival_remove_table_3')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Gỡ bàn').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Bàn B-01'), findsNothing);
+    expect(find.textContaining('Chưa xếp: 1'), findsOneWidget);
+
+    await tester
+        .ensureVisible(find.byKey(const ValueKey('festival_remove_table_1')));
+    await tester.tap(find.byKey(const ValueKey('festival_remove_table_1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Gỡ bàn').last);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Chưa xếp: 3'), findsOneWidget);
+
+    await tester
+        .ensureVisible(find.byKey(const ValueKey('festival_assign_table')));
+    await tester.tap(find.byKey(const ValueKey('festival_assign_table')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('festival_zone_Khu B')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('festival_table_3')));
+    await tester.pumpAndSettle();
+    expect(
+        tester
+            .widget<Text>(find.byKey(const ValueKey('festival_seat_count')))
+            .data,
+        '3');
+    await tester.tap(find.byKey(const ValueKey('festival_seat_decrease')));
+    await tester.pumpAndSettle();
+    expect(
+        tester
+            .widget<Text>(find.byKey(const ValueKey('festival_seat_count')))
+            .data,
+        '2');
+    await tester.tap(find.byKey(const ValueKey('festival_confirm_assign')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Chưa xếp: 1'), findsOneWidget);
+
+    ScaffoldMessenger.of(
+      tester.element(find.byKey(const ValueKey('festival_continue_checkin'))),
+    ).clearSnackBars();
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('festival_continue_checkin')),
+    );
+    await tester.tap(find.byKey(const ValueKey('festival_continue_checkin')));
+    await tester.pumpAndSettle();
+    api.searchGuestOverrideCode = 'OTHER001';
+    await tester.enterText(
+      find.byKey(const ValueKey('festival_manual_input')),
+      'QR001',
+    );
+    await tester.tap(find.byKey(const ValueKey('festival_manual_submit')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('không khớp mã khách'), findsOneWidget);
+    expect(find.byKey(const ValueKey('festival_assign_table')), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 }
 
@@ -178,6 +285,155 @@ class _FakeFestivalApi extends FestivalApiService {
   String? lastCode;
   String? lastGateName;
   String? lastNotes;
+  String? searchGuestOverrideCode;
+  final List<FestivalAssignedTable> seating = [
+    const FestivalAssignedTable(
+      tableId: 1,
+      tableName: 'Bàn 01',
+      zone: 'Khu A',
+      seatCount: 2,
+    ),
+  ];
+
+  @override
+  Future<List<FestivalPrefixColor>> getPrefixColors({
+    required String accessToken,
+    required int eventId,
+  }) async =>
+      const [
+        FestivalPrefixColor(
+          prefixCode: 'QR',
+          bgColor: '#FEE2E2',
+          textColor: '#991B1B',
+          note: 'Nhóm đỏ',
+        ),
+      ];
+
+  @override
+  Future<FestivalHotlineGuest> searchGuestForSeating({
+    required String accessToken,
+    required int eventId,
+    required String keyword,
+  }) async {
+    final assigned =
+        seating.fold<int>(0, (sum, table) => sum + table.seatCount);
+    return FestivalHotlineGuest(
+      id: 5610,
+      guestCode: searchGuestOverrideCode ?? 'QR001',
+      fullName: 'Ông Nguyễn Văn A',
+      numberInvited: 3,
+      totalAssignedSeats: assigned,
+      remainingNeededSeats: 3 - assigned,
+      prefixColor: const FestivalPrefixColor(
+        prefixCode: 'QR',
+        bgColor: '#FEE2E2',
+        textColor: '#991B1B',
+        note: 'Nhóm đỏ',
+      ),
+      assignedTables: List.of(seating),
+    );
+  }
+
+  @override
+  Future<List<FestivalSeatingZone>> getSeatingZones({
+    required String accessToken,
+    required int eventId,
+    String? zone,
+  }) async {
+    const zones = [
+      FestivalSeatingZone(
+        name: 'Khu A',
+        color: '#F59E0B',
+        tables: [
+          FestivalSeatingTable(
+            id: 1,
+            name: 'Bàn 01',
+            zone: 'Khu A',
+            capacity: 10,
+            occupiedSeats: 2,
+            availableSeats: 8,
+            isFull: false,
+          ),
+          FestivalSeatingTable(
+            id: 2,
+            name: 'Bàn A-02',
+            zone: 'Khu A',
+            capacity: 10,
+            occupiedSeats: 0,
+            availableSeats: 10,
+            isFull: false,
+          ),
+        ],
+      ),
+      FestivalSeatingZone(
+        name: 'Khu B',
+        color: '#1E40AF',
+        tables: [
+          FestivalSeatingTable(
+            id: 3,
+            name: 'Bàn B-01',
+            zone: 'Khu B',
+            capacity: 10,
+            occupiedSeats: 0,
+            availableSeats: 10,
+            isFull: false,
+          ),
+        ],
+      ),
+    ];
+    return zone == null
+        ? zones
+        : zones.where((item) => item.name == zone).toList();
+  }
+
+  @override
+  Future<String> assignSeatingTable({
+    required String accessToken,
+    required int eventId,
+    required int guestId,
+    required int tableId,
+    required int seatCount,
+    String staffName = 'My THP Festival',
+  }) async {
+    seating.add(FestivalAssignedTable(
+      tableId: tableId,
+      tableName: tableId == 2 ? 'Bàn A-02' : 'Bàn B-01',
+      zone: tableId == 2 ? 'Khu A' : 'Khu B',
+      seatCount: seatCount,
+    ));
+    return 'Đã gán bàn';
+  }
+
+  @override
+  Future<String> changeSeatingTable({
+    required String accessToken,
+    required int eventId,
+    required int guestId,
+    required int oldTableId,
+    required int newTableId,
+    required int seatCount,
+    String staffName = 'My THP Festival',
+  }) async {
+    seating.removeWhere((table) => table.tableId == oldTableId);
+    seating.add(FestivalAssignedTable(
+      tableId: newTableId,
+      tableName: 'Bàn B-01',
+      zone: 'Khu B',
+      seatCount: seatCount,
+    ));
+    return 'Đã chuyển bàn';
+  }
+
+  @override
+  Future<String> unassignSeatingTable({
+    required String accessToken,
+    required int eventId,
+    required int guestId,
+    required int tableId,
+  }) async {
+    seating.removeWhere((table) => table.tableId == tableId);
+    return 'Đã gỡ bàn';
+  }
 
   @override
   Future<List<FestivalGate>> getGates({

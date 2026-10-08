@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_core_project/common/helpers/is_dark_mode.dart';
+import 'package:flutter_core_project/core/configs/app_config.dart';
 import 'package:flutter_core_project/core/configs/theme/app_colors.dart';
 import 'package:flutter_core_project/data/data_sources/remote/festival_api_service.dart';
 import 'package:flutter_core_project/data/models/festival/festival_models.dart';
@@ -46,6 +47,7 @@ class FestivalScannerPage extends StatefulWidget {
   final FestivalAuthService? authService;
   final FestivalGateStore? gateStore;
   final FestivalScannerBuilder? scannerBuilder;
+  final int? eventId;
 
   const FestivalScannerPage({
     super.key,
@@ -53,6 +55,7 @@ class FestivalScannerPage extends StatefulWidget {
     this.authService,
     this.gateStore,
     this.scannerBuilder,
+    this.eventId,
   });
 
   @override
@@ -66,6 +69,7 @@ class _FestivalScannerPageState extends State<FestivalScannerPage> {
       widget.authService ?? sl<FestivalAuthService>();
   late final FestivalGateStore _gateStore =
       widget.gateStore ?? sl<FestivalGateStore>();
+  int get _eventId => widget.eventId ?? AppConfig.festivalEventId;
 
   final _manualController = TextEditingController();
   List<FestivalGate> _gates = const [];
@@ -77,6 +81,13 @@ class _FestivalScannerPageState extends State<FestivalScannerPage> {
   bool _processing = false;
   bool _sessionExpired = false;
   String? _loadError;
+  FestivalHotlineGuest? _seatingGuest;
+  List<FestivalPrefixColor> _prefixColors = const [];
+  String? _seatingError;
+  String? _currentGuestCode;
+  bool _loadingSeating = false;
+  bool _savingSeating = false;
+  int _scanSerial = 0;
 
   @override
   void initState() {
@@ -122,6 +133,7 @@ class _FestivalScannerPageState extends State<FestivalScannerPage> {
         _loadingGates = false;
         _loadError = gates.isEmpty ? context.tr('festival_gate_empty') : null;
       });
+      unawaited(_loadPrefixColors(token));
     } on FestivalUnauthorizedException {
       await _auth.logout();
       if (!mounted) return;
@@ -136,6 +148,18 @@ class _FestivalScannerPageState extends State<FestivalScannerPage> {
         _loadingGates = false;
         _loadError = context.tr('festival_gate_load_failed');
       });
+    }
+  }
+
+  Future<void> _loadPrefixColors(String token) async {
+    try {
+      final colors = await _api.getPrefixColors(
+        accessToken: token,
+        eventId: _eventId,
+      );
+      if (mounted) setState(() => _prefixColors = colors);
+    } catch (_) {
+      // Guest lookup also returns its resolved PrefixColor.
     }
   }
 
@@ -164,9 +188,14 @@ class _FestivalScannerPageState extends State<FestivalScannerPage> {
     final gate = _selectedGate;
     if (_processing || code.isEmpty || gate == null) return;
     FocusScope.of(context).unfocus();
+    final scanSerial = ++_scanSerial;
     setState(() {
       _processing = true;
       _result = null;
+      _seatingGuest = null;
+      _seatingError = null;
+      _currentGuestCode = null;
+      _loadingSeating = false;
     });
 
     try {
@@ -194,6 +223,12 @@ class _FestivalScannerPageState extends State<FestivalScannerPage> {
       }
       if (!mounted) return;
       setState(() => _result = result);
+      if (result is FestivalCheckInResult &&
+          (result.success || result.alreadyCheckedIn)) {
+        final guestCode = result.guestCode ?? code;
+        _currentGuestCode = guestCode;
+        unawaited(_loadSeating(guestCode, scanSerial));
+      }
     } on FestivalUnauthorizedException {
       await _auth.logout();
       if (!mounted) return;
@@ -207,6 +242,243 @@ class _FestivalScannerPageState extends State<FestivalScannerPage> {
     } finally {
       if (mounted) setState(() => _processing = false);
     }
+  }
+
+  Future<void> _loadSeating(String guestCode, int scanSerial) async {
+    if (!mounted || scanSerial != _scanSerial) return;
+    setState(() {
+      _loadingSeating = true;
+      _seatingError = null;
+      _seatingGuest = null;
+    });
+    try {
+      final token = await _auth.getAccessToken();
+      if (token == null) throw const FestivalUnauthorizedException();
+      final guest = await _api.searchGuestForSeating(
+        accessToken: token,
+        eventId: _eventId,
+        keyword: guestCode,
+      );
+      if (!mounted || scanSerial != _scanSerial) return;
+      final checkInResult = _result;
+      if (checkInResult is FestivalCheckInResult &&
+          ((checkInResult.guestId != null &&
+                  checkInResult.guestId != guest.id) ||
+              (checkInResult.guestCode != null &&
+                  checkInResult.guestCode!.toUpperCase() !=
+                      guest.guestCode.toUpperCase()))) {
+        throw FestivalApiException(
+          context.tr('festival_seating_guest_mismatch'),
+        );
+      }
+      setState(() => _seatingGuest = guest);
+    } on FestivalUnauthorizedException {
+      if (!mounted || scanSerial != _scanSerial) return;
+      setState(() => _seatingError = context.tr('festival_session_expired'));
+    } on FestivalApiException catch (error) {
+      if (!mounted || scanSerial != _scanSerial) return;
+      setState(() => _seatingError = error.message);
+    } catch (_) {
+      if (!mounted || scanSerial != _scanSerial) return;
+      setState(
+          () => _seatingError = context.tr('festival_seating_load_failed'));
+    } finally {
+      if (mounted && scanSerial == _scanSerial) {
+        setState(() => _loadingSeating = false);
+      }
+    }
+  }
+
+  void _retrySeating() {
+    final code = _currentGuestCode;
+    if (code != null) unawaited(_loadSeating(code, _scanSerial));
+  }
+
+  Future<FestivalSeatingTable?> _pickSeatingTable({
+    required int minSeats,
+    int? excludeTableId,
+  }) async {
+    final token = await _auth.getAccessToken();
+    if (token == null) throw const FestivalUnauthorizedException();
+    if (!mounted) return null;
+    final zone = await showModalBottomSheet<FestivalSeatingZone>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _FestivalZonePickerSheet(
+        minSeats: minSeats,
+        excludeTableId: excludeTableId,
+        loadZones: () => _api.getSeatingZones(
+          accessToken: token,
+          eventId: _eventId,
+        ),
+      ),
+    );
+    if (zone == null || !mounted) return null;
+    return showModalBottomSheet<FestivalSeatingTable>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _FestivalTablePickerSheet(
+        zoneName: zone.name,
+        minSeats: minSeats,
+        excludeTableId: excludeTableId,
+        loadZones: () => _api.getSeatingZones(
+          accessToken: token,
+          eventId: _eventId,
+          zone: zone.name,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _assignTable() async {
+    final guest = _seatingGuest;
+    if (guest == null || guest.remainingNeededSeats <= 0 || _savingSeating) {
+      return;
+    }
+    try {
+      final table = await _pickSeatingTable(minSeats: 1);
+      if (table == null || !mounted) return;
+      final maxSeats = guest.remainingNeededSeats < table.availableSeats
+          ? guest.remainingNeededSeats
+          : table.availableSeats;
+      final count = await showDialog<int>(
+        context: context,
+        builder: (_) => _FestivalSeatConfirmationDialog(
+          guestName: guest.fullName,
+          tableName: table.name,
+          zoneName: table.zone,
+          maxSeats: maxSeats,
+          availableSeats: table.availableSeats,
+        ),
+      );
+      if (count == null || !mounted) return;
+      await _runSeatingMutation((token) => _api.assignSeatingTable(
+            accessToken: token,
+            eventId: _eventId,
+            guestId: guest.id,
+            tableId: table.id,
+            seatCount: count,
+          ));
+    } on FestivalApiException catch (error) {
+      _showSeatingMessage(error.message);
+    } catch (_) {
+      if (mounted) {
+        _showSeatingMessage(context.tr('festival_seating_load_failed'));
+      }
+    }
+  }
+
+  Future<void> _changeTable(FestivalAssignedTable assigned) async {
+    final guest = _seatingGuest;
+    if (guest == null || _savingSeating) return;
+    try {
+      final table = await _pickSeatingTable(
+        minSeats: assigned.seatCount,
+        excludeTableId: assigned.tableId,
+      );
+      if (table == null || !mounted) return;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(context.tr('festival_move_table')),
+          content: Text(
+            '${assigned.tableName} → ${table.name} (${table.zone})\n'
+            '${assigned.seatCount} ${context.tr('festival_seat_unit')}',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: Text(context.tr('festival_cancel')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(context.tr('festival_confirm')),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+      await _runSeatingMutation((token) => _api.changeSeatingTable(
+            accessToken: token,
+            eventId: _eventId,
+            guestId: guest.id,
+            oldTableId: assigned.tableId,
+            newTableId: table.id,
+            seatCount: assigned.seatCount,
+          ));
+    } on FestivalApiException catch (error) {
+      _showSeatingMessage(error.message);
+    } catch (_) {
+      if (mounted) {
+        _showSeatingMessage(context.tr('festival_seating_load_failed'));
+      }
+    }
+  }
+
+  Future<void> _unassignTable(FestivalAssignedTable assigned) async {
+    final guest = _seatingGuest;
+    if (guest == null || _savingSeating) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(context.tr('festival_remove_table')),
+        content: Text(
+          '${guest.fullName} • ${assigned.tableName}\n'
+          '${assigned.seatCount} ${context.tr('festival_seat_unit')}',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(context.tr('festival_cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(context.tr('festival_remove_table')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await _runSeatingMutation((token) => _api.unassignSeatingTable(
+          accessToken: token,
+          eventId: _eventId,
+          guestId: guest.id,
+          tableId: assigned.tableId,
+        ));
+  }
+
+  Future<void> _runSeatingMutation(
+    Future<String> Function(String token) action,
+  ) async {
+    if (_savingSeating) return;
+    setState(() => _savingSeating = true);
+    try {
+      final token = await _auth.getAccessToken();
+      if (token == null) throw const FestivalUnauthorizedException();
+      final message = await action(token);
+      final code = _currentGuestCode;
+      if (code != null) await _loadSeating(code, _scanSerial);
+      _showSeatingMessage(message);
+    } on FestivalApiException catch (error) {
+      _showSeatingMessage(error.message);
+    } catch (_) {
+      if (mounted) {
+        _showSeatingMessage(context.tr('festival_seating_save_failed'));
+      }
+    } finally {
+      if (mounted) setState(() => _savingSeating = false);
+    }
+  }
+
+  void _showSeatingMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   Object _failureResult(String messageKey) {
@@ -227,8 +499,12 @@ class _FestivalScannerPageState extends State<FestivalScannerPage> {
 
   void _continueCheckIn() {
     _manualController.clear();
+    ++_scanSerial;
     setState(() {
       _result = null;
+      _seatingGuest = null;
+      _seatingError = null;
+      _currentGuestCode = null;
     });
   }
 
@@ -330,6 +606,15 @@ class _FestivalScannerPageState extends State<FestivalScannerPage> {
         result: _result!,
         operation: _operation,
         onContinue: _continueCheckIn,
+        seatingGuest: _seatingGuest,
+        prefixColors: _prefixColors,
+        loadingSeating: _loadingSeating,
+        seatingError: _seatingError,
+        savingSeating: _savingSeating,
+        onRetrySeating: _retrySeating,
+        onAssignTable: _assignTable,
+        onChangeTable: _changeTable,
+        onUnassignTable: _unassignTable,
       );
     }
     return _buildCheckIn(context);
@@ -476,9 +761,13 @@ class _FestivalScannerPageState extends State<FestivalScannerPage> {
   void _changeOperation(FestivalOperation operation) {
     if (_operation == operation) return;
     _manualController.clear();
+    ++_scanSerial;
     setState(() {
       _operation = operation;
       _result = null;
+      _seatingGuest = null;
+      _seatingError = null;
+      _currentGuestCode = null;
     });
   }
 
@@ -976,11 +1265,29 @@ class _FestivalResultView extends StatelessWidget {
   final Object result;
   final FestivalOperation operation;
   final VoidCallback onContinue;
+  final FestivalHotlineGuest? seatingGuest;
+  final List<FestivalPrefixColor> prefixColors;
+  final bool loadingSeating;
+  final String? seatingError;
+  final bool savingSeating;
+  final VoidCallback onRetrySeating;
+  final VoidCallback onAssignTable;
+  final ValueChanged<FestivalAssignedTable> onChangeTable;
+  final ValueChanged<FestivalAssignedTable> onUnassignTable;
 
   const _FestivalResultView({
     required this.result,
     required this.operation,
     required this.onContinue,
+    required this.seatingGuest,
+    required this.prefixColors,
+    required this.loadingSeating,
+    required this.seatingError,
+    required this.savingSeating,
+    required this.onRetrySeating,
+    required this.onAssignTable,
+    required this.onChangeTable,
+    required this.onUnassignTable,
   });
 
   @override
@@ -1004,6 +1311,16 @@ class _FestivalResultView extends StatelessWidget {
     final vipLevel = checkInResult?.vipLevel ?? giftResult?.vipLevel;
     final vipName = checkInResult?.vipName ?? giftResult?.vipName;
     final guestCode = checkInResult?.guestCode ?? giftResult?.guestCode;
+    FestivalPrefixColor? prefixColor = seatingGuest?.prefixColor;
+    if (prefixColor == null && guestCode != null) {
+      final matches = prefixColors
+          .where((color) => guestCode
+              .toUpperCase()
+              .startsWith(color.prefixCode.toUpperCase()))
+          .toList()
+        ..sort((a, b) => b.prefixCode.length.compareTo(a.prefixCode.length));
+      if (matches.isNotEmpty) prefixColor = matches.first;
+    }
     final tableName = checkInResult?.tableName ?? giftResult?.tableName;
     final tableSeat = checkInResult?.tableSeat ?? giftResult?.tableSeat;
     final giftNote = giftResult?.giftNote;
@@ -1116,16 +1433,31 @@ class _FestivalResultView extends StatelessWidget {
                     ),
                   ),
                 ],
-                if (tableName != null || tableSeat != null) ...[
+                if (!isGift && prefixColor != null) ...[
                   const SizedBox(height: 16),
+                  _FestivalGuestColorBanner(color: prefixColor),
+                ],
+                if (giftNote != null) ...[
+                  const SizedBox(height: 16),
+                  _FestivalGiftInformationCard(giftNote: giftNote),
+                ],
+                if ((isGift || seatingGuest == null) &&
+                    (tableName != null || tableSeat != null)) ...[
+                  const SizedBox(height: 12),
                   _FestivalSeatingCard(
                     tableName: tableName,
                     tableSeat: tableSeat,
                   ),
                 ],
-                if (giftNote != null) ...[
+                if (!isGift &&
+                    seatingGuest != null &&
+                    seatingGuest!.assignedTables.isNotEmpty &&
+                    tableSeat != null) ...[
                   const SizedBox(height: 12),
-                  _FestivalGiftInformationCard(giftNote: giftNote),
+                  Chip(
+                    avatar: const Icon(Icons.event_seat_rounded, size: 18),
+                    label: Text(tableSeat),
+                  ),
                 ],
                 if (message.isNotEmpty) ...[
                   const SizedBox(height: 14),
@@ -1146,10 +1478,23 @@ class _FestivalResultView extends StatelessWidget {
               ],
             ),
           ),
+          if (!isGift && (isSuccess || isWarning) && guestCode != null) ...[
+            const SizedBox(height: 14),
+            _FestivalSeatingPanel(
+              guest: seatingGuest,
+              loading: loadingSeating,
+              error: seatingError,
+              saving: savingSeating,
+              onRetry: onRetrySeating,
+              onAssign: onAssignTable,
+              onChange: onChangeTable,
+              onUnassign: onUnassignTable,
+            ),
+          ],
           const SizedBox(height: 20),
           FilledButton.icon(
             key: const ValueKey('festival_continue_checkin'),
-            onPressed: onContinue,
+            onPressed: savingSeating ? null : onContinue,
             icon: Icon(
               isGift
                   ? Icons.card_giftcard_rounded
@@ -1164,6 +1509,510 @@ class _FestivalResultView extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+Color? _festivalHexColor(String? value) {
+  if (value == null) return null;
+  final hex = value.trim().replaceFirst('#', '');
+  if (!RegExp(r'^[0-9a-fA-F]{6}$|^[0-9a-fA-F]{8}$').hasMatch(hex)) {
+    return null;
+  }
+  return Color(int.parse(hex.length == 6 ? 'FF$hex' : hex, radix: 16));
+}
+
+class _FestivalGuestColorBanner extends StatelessWidget {
+  final FestivalPrefixColor color;
+
+  const _FestivalGuestColorBanner({required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final background = _festivalHexColor(color.bgColor) ?? Colors.white;
+    final foreground =
+        _festivalHexColor(color.textColor) ?? const Color(0xFF1F2937);
+    return Container(
+      key: const ValueKey('festival_guest_color'),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: foreground.withAlpha(80)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.local_offer_rounded, color: foreground, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  color.prefixCode,
+                  style: TextStyle(
+                    color: foreground,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                if (color.note != null)
+                  Text(
+                    color.note!,
+                    style: TextStyle(
+                      color: foreground,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FestivalSeatingPanel extends StatelessWidget {
+  final FestivalHotlineGuest? guest;
+  final bool loading;
+  final String? error;
+  final bool saving;
+  final VoidCallback onRetry;
+  final VoidCallback onAssign;
+  final ValueChanged<FestivalAssignedTable> onChange;
+  final ValueChanged<FestivalAssignedTable> onUnassign;
+
+  const _FestivalSeatingPanel({
+    required this.guest,
+    required this.loading,
+    required this.error,
+    required this.saving,
+    required this.onRetry,
+    required this.onAssign,
+    required this.onChange,
+    required this.onUnassign,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    return Container(
+      key: const ValueKey('festival_seating_panel'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: context.isDarkMode ? const Color(0xFF2A2A2A) : Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.table_restaurant_rounded,
+                  color: AppColors.primary),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  context.tr('festival_seating_management'),
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              if (loading || saving)
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
+          ),
+          if (guest == null) ...[
+            const SizedBox(height: 12),
+            Text(error ?? context.tr('festival_seating_loading')),
+            if (error != null)
+              TextButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh_rounded),
+                label: Text(context.tr('festival_retry')),
+              ),
+          ] else ...[
+            const SizedBox(height: 8),
+            Text(
+              '${context.tr('festival_invited_guests')}: ${guest!.numberInvited}  •  '
+              '${context.tr('festival_assigned_seats')}: ${guest!.totalAssignedSeats}  •  '
+              '${context.tr('festival_remaining_seats')}: ${guest!.remainingNeededSeats}',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colors.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (guest!.assignedTables.isEmpty) ...[
+              const SizedBox(height: 16),
+              Text(context.tr('festival_no_table')),
+            ],
+            for (final table in guest!.assignedTables) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color:
+                      AppColors.primary.withAlpha(context.isDarkMode ? 38 : 15),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      table.tableName,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      [
+                        if (table.zone != null) table.zone!,
+                        '${table.seatCount} ${context.tr('festival_seat_unit')}',
+                      ].join(' • '),
+                    ),
+                    if (table.seatsDescription != null &&
+                        table.seatsDescription != '${table.seatCount} chỗ')
+                      Text(table.seatsDescription!),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        OutlinedButton.icon(
+                          key: ValueKey(
+                              'festival_change_table_${table.tableId}'),
+                          onPressed: saving ? null : () => onChange(table),
+                          icon: const Icon(Icons.swap_horiz_rounded, size: 18),
+                          label: Text(context.tr('festival_move_table')),
+                        ),
+                        TextButton.icon(
+                          key: ValueKey(
+                              'festival_remove_table_${table.tableId}'),
+                          onPressed: saving ? null : () => onUnassign(table),
+                          icon: const Icon(Icons.delete_outline_rounded,
+                              size: 18),
+                          label: Text(context.tr('festival_remove_table')),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            if (guest!.remainingNeededSeats > 0) ...[
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  key: const ValueKey('festival_assign_table'),
+                  onPressed: saving ? null : onAssign,
+                  icon: const Icon(Icons.add_rounded),
+                  label: Text(context.tr('festival_assign_table')),
+                ),
+              ),
+            ],
+            if (error != null) ...[
+              const SizedBox(height: 8),
+              TextButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh_rounded),
+                label: Text(context.tr('festival_retry')),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _FestivalZonePickerSheet extends StatefulWidget {
+  final int minSeats;
+  final int? excludeTableId;
+  final Future<List<FestivalSeatingZone>> Function() loadZones;
+
+  const _FestivalZonePickerSheet({
+    required this.minSeats,
+    this.excludeTableId,
+    required this.loadZones,
+  });
+
+  @override
+  State<_FestivalZonePickerSheet> createState() =>
+      _FestivalZonePickerSheetState();
+}
+
+class _FestivalZonePickerSheetState extends State<_FestivalZonePickerSheet> {
+  late Future<List<FestivalSeatingZone>> _future = widget.loadZones();
+
+  @override
+  Widget build(BuildContext context) {
+    return _FestivalPickerFrame(
+      title: context.tr('festival_choose_zone'),
+      child: FutureBuilder<List<FestivalSeatingZone>>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData && !snapshot.hasError) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(
+              child: TextButton.icon(
+                onPressed: () => setState(() => _future = widget.loadZones()),
+                icon: const Icon(Icons.refresh_rounded),
+                label: Text(context.tr('festival_seating_load_failed')),
+              ),
+            );
+          }
+          final zones = snapshot.data!;
+          if (zones.isEmpty) {
+            return Center(child: Text(context.tr('festival_no_zones')));
+          }
+          return ListView.separated(
+            itemCount: zones.length,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final zone = zones[index];
+              final eligible = zone.tables.where((table) =>
+                  table.id != widget.excludeTableId &&
+                  !table.isFull &&
+                  table.availableSeats >= widget.minSeats);
+              final available = eligible.fold<int>(
+                0,
+                (sum, table) => sum + table.availableSeats,
+              );
+              return ListTile(
+                key: ValueKey('festival_zone_${zone.name}'),
+                leading: CircleAvatar(
+                  backgroundColor:
+                      _festivalHexColor(zone.color) ?? AppColors.primary,
+                  radius: 13,
+                ),
+                title: Text(zone.name,
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: Text(
+                  '${eligible.length} ${context.tr('festival_table_unit')} • '
+                  '$available ${context.tr('festival_seats_available')}',
+                ),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                enabled: available >= widget.minSeats,
+                onTap: available >= widget.minSeats
+                    ? () => Navigator.pop(context, zone)
+                    : null,
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _FestivalTablePickerSheet extends StatefulWidget {
+  final String zoneName;
+  final int minSeats;
+  final int? excludeTableId;
+  final Future<List<FestivalSeatingZone>> Function() loadZones;
+
+  const _FestivalTablePickerSheet({
+    required this.zoneName,
+    required this.minSeats,
+    this.excludeTableId,
+    required this.loadZones,
+  });
+
+  @override
+  State<_FestivalTablePickerSheet> createState() =>
+      _FestivalTablePickerSheetState();
+}
+
+class _FestivalTablePickerSheetState extends State<_FestivalTablePickerSheet> {
+  late Future<List<FestivalSeatingZone>> _future = widget.loadZones();
+
+  @override
+  Widget build(BuildContext context) {
+    return _FestivalPickerFrame(
+      title: '${context.tr('festival_choose_table')} • ${widget.zoneName}',
+      child: FutureBuilder<List<FestivalSeatingZone>>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData && !snapshot.hasError) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(
+              child: TextButton.icon(
+                onPressed: () => setState(() => _future = widget.loadZones()),
+                icon: const Icon(Icons.refresh_rounded),
+                label: Text(context.tr('festival_seating_load_failed')),
+              ),
+            );
+          }
+          final zones = snapshot.data!;
+          final tables = zones.isEmpty
+              ? <FestivalSeatingTable>[]
+              : zones.first.tables
+                  .where((table) => table.id != widget.excludeTableId)
+                  .toList();
+          if (tables.isEmpty) {
+            return Center(child: Text(context.tr('festival_no_tables')));
+          }
+          return ListView.separated(
+            itemCount: tables.length,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final table = tables[index];
+              final selectable =
+                  !table.isFull && table.availableSeats >= widget.minSeats;
+              return ListTile(
+                key: ValueKey('festival_table_${table.id}'),
+                leading: const Icon(Icons.table_restaurant_rounded),
+                title: Text(table.name,
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: Text(
+                  '${table.availableSeats}/${table.capacity} '
+                  '${context.tr('festival_seats_available')}',
+                ),
+                trailing: selectable
+                    ? const Icon(Icons.chevron_right_rounded)
+                    : Text(context.tr('festival_table_full')),
+                enabled: selectable,
+                onTap: selectable ? () => Navigator.pop(context, table) : null,
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _FestivalPickerFrame extends StatelessWidget {
+  final String title;
+  final Widget child;
+
+  const _FestivalPickerFrame({required this.title, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: context.isDarkMode ? const Color(0xFF292929) : Colors.white,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.72,
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 42,
+              height: 5,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.outlineVariant,
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(18),
+              child: Text(title,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      )),
+            ),
+            Expanded(child: child),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FestivalSeatConfirmationDialog extends StatefulWidget {
+  final String guestName;
+  final String tableName;
+  final String zoneName;
+  final int maxSeats;
+  final int availableSeats;
+
+  const _FestivalSeatConfirmationDialog({
+    required this.guestName,
+    required this.tableName,
+    required this.zoneName,
+    required this.maxSeats,
+    required this.availableSeats,
+  });
+
+  @override
+  State<_FestivalSeatConfirmationDialog> createState() =>
+      _FestivalSeatConfirmationDialogState();
+}
+
+class _FestivalSeatConfirmationDialogState
+    extends State<_FestivalSeatConfirmationDialog> {
+  late int _seatCount = widget.maxSeats;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(context.tr('festival_confirm_seating')),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(widget.guestName,
+              style: const TextStyle(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          Text('${widget.zoneName} • ${widget.tableName}'),
+          Text(
+              '${context.tr('festival_seats_available')}: ${widget.availableSeats}'),
+          const SizedBox(height: 18),
+          Text(context.tr('festival_seats_to_assign'),
+              style: const TextStyle(fontWeight: FontWeight.w700)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                key: const ValueKey('festival_seat_decrease'),
+                onPressed:
+                    _seatCount > 1 ? () => setState(() => _seatCount--) : null,
+                icon: const Icon(Icons.remove_circle_outline_rounded),
+              ),
+              Text('$_seatCount',
+                  key: const ValueKey('festival_seat_count'),
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      )),
+              IconButton(
+                key: const ValueKey('festival_seat_increase'),
+                onPressed: _seatCount < widget.maxSeats
+                    ? () => setState(() => _seatCount++)
+                    : null,
+                icon: const Icon(Icons.add_circle_outline_rounded),
+              ),
+            ],
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(context.tr('festival_cancel')),
+        ),
+        FilledButton(
+          key: const ValueKey('festival_confirm_assign'),
+          onPressed: () => Navigator.pop(context, _seatCount),
+          child: Text(context.tr('festival_confirm')),
+        ),
+      ],
     );
   }
 }
@@ -1269,38 +2118,42 @@ class _FestivalGiftInformationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final color = theme.colorScheme.secondary;
+    const color = Color(0xFFE87500);
     return Container(
       key: const ValueKey('festival_gift_information'),
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: color.withAlpha(context.isDarkMode ? 46 : 20),
+        color: context.isDarkMode
+            ? const Color(0xFF3D2819)
+            : const Color(0xFFFFF1DA),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withAlpha(71)),
+        border: Border.all(color: color.withAlpha(170), width: 1.5),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.card_giftcard_rounded, color: color, size: 24),
-          const SizedBox(width: 10),
+          const Icon(Icons.card_giftcard_rounded, color: color, size: 28),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   context.tr('festival_gift_information'),
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: color,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: context.isDarkMode
+                        ? const Color(0xFFFFB66B)
+                        : const Color(0xFF9B4C00),
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
                 Text(
                   giftNote,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    height: 1.35,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    height: 1.4,
                   ),
                 ),
               ],

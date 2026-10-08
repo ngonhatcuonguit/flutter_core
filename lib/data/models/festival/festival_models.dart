@@ -116,6 +116,9 @@ class FestivalCheckInResult {
   final String? gateName;
   final String? tableName;
   final String? tableSeat;
+  final int? guestId;
+  final int? tableId;
+  final int? numberInvited;
 
   const FestivalCheckInResult({
     required this.success,
@@ -133,6 +136,9 @@ class FestivalCheckInResult {
     this.gateName,
     this.tableName,
     this.tableSeat,
+    this.guestId,
+    this.tableId,
+    this.numberInvited,
   });
 
   factory FestivalCheckInResult.fromJson(Map<String, dynamic> json) {
@@ -156,6 +162,187 @@ class FestivalCheckInResult {
           _stringValue(_read(json, 'TableName')),
       tableSeat: _stringValue(_read(source, 'TableSeat')) ??
           _stringValue(_read(json, 'TableSeat')),
+      guestId: _intValue(_read(source, 'Id')),
+      tableId: _intValue(_read(source, 'TableId')) ??
+          _intValue(_read(json, 'TableId')),
+      numberInvited: _intValue(_read(source, 'NumberInvited')),
+    );
+  }
+}
+
+class FestivalPrefixColor {
+  final String prefixCode;
+  final String? bgColor;
+  final String? textColor;
+  final String? note;
+
+  const FestivalPrefixColor({
+    required this.prefixCode,
+    this.bgColor,
+    this.textColor,
+    this.note,
+  });
+
+  factory FestivalPrefixColor.fromJson(Map<String, dynamic> json) =>
+      FestivalPrefixColor(
+        prefixCode: _stringValue(_read(json, 'PrefixCode')) ?? '',
+        bgColor: _stringValue(_read(json, 'BgColor')),
+        textColor: _stringValue(_read(json, 'TextColor')),
+        note: _stringValue(_read(json, 'Note')),
+      );
+}
+
+class FestivalAssignedTable {
+  final int tableId;
+  final String tableName;
+  final String? zone;
+  final int seatCount;
+  final String? seatsDescription;
+
+  const FestivalAssignedTable({
+    required this.tableId,
+    required this.tableName,
+    this.zone,
+    required this.seatCount,
+    this.seatsDescription,
+  });
+
+  factory FestivalAssignedTable.fromJson(Map<String, dynamic> json) =>
+      FestivalAssignedTable(
+        tableId: _intValue(_read(json, 'TableId')) ?? 0,
+        tableName: _stringValue(_read(json, 'TableName')) ?? '',
+        zone: _stringValue(_read(json, 'Zone')),
+        seatCount: _intValue(_read(json, 'SeatCount')) ?? 0,
+        seatsDescription: _stringValue(_read(json, 'SeatsDescription')),
+      );
+}
+
+class FestivalHotlineGuest {
+  final int id;
+  final String guestCode;
+  final String fullName;
+  final int numberInvited;
+  final int totalAssignedSeats;
+  final int remainingNeededSeats;
+  final FestivalPrefixColor? prefixColor;
+  final List<FestivalAssignedTable> assignedTables;
+
+  const FestivalHotlineGuest({
+    required this.id,
+    required this.guestCode,
+    required this.fullName,
+    required this.numberInvited,
+    required this.totalAssignedSeats,
+    required this.remainingNeededSeats,
+    this.prefixColor,
+    this.assignedTables = const [],
+  });
+
+  factory FestivalHotlineGuest.fromJson(Map<String, dynamic> json) {
+    final guest = _asStringMap(_read(json, 'Guest')) ?? json;
+    final prefix = _asStringMap(_read(json, 'PrefixColor')) ??
+        _asStringMap(_read(guest, 'PrefixColor'));
+    final tables =
+        _read(json, 'AssignedTables') ?? _read(guest, 'AssignedTables');
+    final invited = _intValue(_read(guest, 'NumberInvited')) ??
+        _intValue(_read(json, 'NeededSeats')) ??
+        1;
+    final assigned = _intValue(_read(json, 'TotalAssignedSeats')) ??
+        _intValue(_read(guest, 'TotalAssignedSeats')) ??
+        0;
+    return FestivalHotlineGuest(
+      id: _intValue(_read(guest, 'Id')) ?? 0,
+      guestCode: _stringValue(_read(guest, 'GuestCode')) ?? '',
+      fullName: _stringValue(_read(guest, 'FullName')) ?? '',
+      numberInvited: invited,
+      totalAssignedSeats: assigned,
+      remainingNeededSeats: _intValue(_read(json, 'RemainingNeededSeats')) ??
+          _intValue(_read(guest, 'RemainingNeededSeats')) ??
+          (invited - assigned).clamp(0, invited),
+      prefixColor: prefix != null
+          ? FestivalPrefixColor.fromJson(prefix)
+          : _read(guest, 'BgColor') != null
+              ? FestivalPrefixColor.fromJson(guest)
+              : null,
+      assignedTables: tables is List
+          ? tables
+              .whereType<Map>()
+              .map((item) => FestivalAssignedTable.fromJson(
+                  Map<String, dynamic>.from(item)))
+              .where((table) => table.tableId > 0)
+              .toList(growable: false)
+          : const [],
+    );
+  }
+}
+
+class FestivalSeatingTable {
+  final int id;
+  final String name;
+  final String zone;
+  final int capacity;
+  final int occupiedSeats;
+  final int availableSeats;
+  final bool isFull;
+
+  const FestivalSeatingTable({
+    required this.id,
+    required this.name,
+    required this.zone,
+    required this.capacity,
+    required this.occupiedSeats,
+    required this.availableSeats,
+    required this.isFull,
+  });
+
+  factory FestivalSeatingTable.fromJson(Map<String, dynamic> json) {
+    final capacity = _intValue(_read(json, 'Capacity')) ?? 0;
+    final occupied = _intValue(_read(json, 'OccupiedSeats')) ?? 0;
+    final available = _intValue(_read(json, 'AvailableSeats')) ??
+        (capacity - occupied).clamp(0, capacity);
+    return FestivalSeatingTable(
+      id: _intValue(_read(json, 'TableId')) ??
+          _intValue(_read(json, 'Id')) ??
+          0,
+      name: _stringValue(_read(json, 'TableName')) ?? '',
+      zone: _stringValue(_read(json, 'Zone')) ?? '',
+      capacity: capacity,
+      occupiedSeats: occupied,
+      availableSeats: available,
+      isFull: _boolFrom(_read(json, 'IsFull')) || available <= 0,
+    );
+  }
+}
+
+class FestivalSeatingZone {
+  final String name;
+  final String? color;
+  final List<FestivalSeatingTable> tables;
+
+  const FestivalSeatingZone({
+    required this.name,
+    this.color,
+    required this.tables,
+  });
+
+  int get availableSeats =>
+      tables.fold(0, (sum, table) => sum + table.availableSeats);
+
+  factory FestivalSeatingZone.fromJson(Map<String, dynamic> json) {
+    final rawTables = _read(json, 'Tables');
+    return FestivalSeatingZone(
+      name: _stringValue(_read(json, 'ZoneName')) ??
+          _stringValue(_read(json, 'Name')) ??
+          '',
+      color: _stringValue(_read(json, 'Color')),
+      tables: rawTables is List
+          ? rawTables
+              .whereType<Map>()
+              .map((item) => FestivalSeatingTable.fromJson(
+                  Map<String, dynamic>.from(item)))
+              .where((table) => table.id > 0)
+              .toList(growable: false)
+          : const [],
     );
   }
 }

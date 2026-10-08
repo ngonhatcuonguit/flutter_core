@@ -26,6 +26,12 @@ class AppConfig {
   static String get festivalBaseUrl =>
       _readEnv('FESTIVAL_API_BASE_URL') ?? 'https://mobile-test.thp.com.vn';
 
+  /// Current event used for Festival seating and guest color lookups.
+  static int get festivalEventId {
+    final value = int.tryParse(_readEnv('FESTIVAL_EVENT_ID') ?? '');
+    return value != null && value > 0 ? value : 2;
+  }
+
   /// Display name shown in app title / debug banner
   static String get appTitle => _readEnv('APP_TITLE') ?? 'My THP';
 
