@@ -407,8 +407,8 @@ class FestivalGiftCheckInResult {
           _stringValue(_read(json, 'TableSeat')),
       giftStatus: _intValue(_read(source, 'GiftStatus')) ??
           _intValue(_read(json, 'GiftStatus')),
-      giftNote: _stringValue(_read(source, 'GiftNote')) ??
-          _stringValue(_read(json, 'GiftNote')),
+      giftNote: _optionalDisplayString(_read(source, 'GiftNote')) ??
+          _optionalDisplayString(_read(json, 'GiftNote')),
     );
   }
 }
@@ -443,6 +443,20 @@ String? _stringValue(Object? value) {
   if (value == null) return null;
   final text = value.toString().trim();
   return text.isEmpty ? null : text;
+}
+
+String? _optionalDisplayString(Object? value) {
+  final text = _stringValue(value);
+  if (text == null) return null;
+  switch (text.toLowerCase()) {
+    case 'null':
+    case 'undefined':
+    case 'n/a':
+    case 'na':
+    case '-':
+      return null;
+  }
+  return text;
 }
 
 bool _boolFrom(Object? value) {

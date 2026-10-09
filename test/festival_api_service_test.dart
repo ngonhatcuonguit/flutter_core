@@ -211,6 +211,7 @@ void main() {
             'GuestCode': 'G002',
             'GiftReceivedDate': '08:40',
             'GiftGateName': 'Quầy quà chính',
+            'GiftNote': '   ',
           },
         }),
       );
@@ -227,6 +228,7 @@ void main() {
       expect(result.fullName, 'Bà Trần B');
       expect(result.giftReceivedDate, '08:40');
       expect(result.giftGateName, 'Quầy quà chính');
+      expect(result.giftNote, isNull);
     });
 
     test('rejects a successful login response without a token', () async {
@@ -371,6 +373,12 @@ void main() {
       expect(harness.adapter.requests[2].queryParameters, {'eventId': 2});
       expect(harness.adapter.requests[3].queryParameters,
           {'eventId': 2, 'zone': 'A10'});
+      expect(harness.adapter.requests[2].uri.host, 'event_checkin.thp.com.vn');
+      expect(harness.adapter.requests[3].uri.host, 'event_checkin.thp.com.vn');
+      expect(
+        harness.adapter.requests[0].uri.host,
+        'mobile-test.thp.com.vn',
+      );
       for (final request in harness.adapter.requests) {
         expect(request.headers['Authorization'], 'Bearer test-token');
       }

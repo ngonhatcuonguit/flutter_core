@@ -26,6 +26,13 @@ class AppConfig {
   static String get festivalBaseUrl =>
       _readEnv('FESTIVAL_API_BASE_URL') ?? 'https://mobile-test.thp.com.vn';
 
+  /// Dedicated host documented for live Hotline zone/table lookups. This is
+  /// intentionally separate so check-in and authentication keep their current
+  /// Festival API host.
+  static String get festivalSeatingBaseUrl =>
+      _readEnv('FESTIVAL_SEATING_API_BASE_URL') ??
+      'https://event_checkin.thp.com.vn';
+
   /// Current event used for Festival seating and guest color lookups.
   static int get festivalEventId {
     final value = int.tryParse(_readEnv('FESTIVAL_EVENT_ID') ?? '');

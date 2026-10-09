@@ -127,6 +127,10 @@ void main() {
     expect(api.lastCode, '0912000001');
     expect(api.lastNotes, contains('Manual gift'));
     expect(find.text('Trao quà thành công'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('festival_gift_information')),
+      findsNothing,
+    );
 
     await tester.binding.setSurfaceSize(const Size(320, 568));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -167,7 +171,14 @@ void main() {
     );
     expect((colorCard.decoration! as BoxDecoration).color,
         const Color(0xFFFEE2E2));
-    expect(find.textContaining('Chưa xếp: 1'), findsOneWidget);
+    expect(find.text('Tổng khách hiện tại'), findsOneWidget);
+    expect(find.text('SL trên QR (tham khảo)'), findsOneWidget);
+    expect(find.text('Số bàn đã xếp'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('festival_table_guest_count_1')),
+      findsOneWidget,
+    );
+    expect(find.text('2 khách'), findsOneWidget);
 
     await tester
         .ensureVisible(find.byKey(const ValueKey('festival_assign_table')));
@@ -178,12 +189,33 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('festival_table_2')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('festival_seat_count')), findsOneWidget);
-    expect(find.text('1'), findsWidgets);
+    await tester.enterText(
+      find.byKey(const ValueKey('festival_seat_count')),
+      '11',
+    );
+    await tester.pumpAndSettle();
+    expect(
+        find.textContaining('Số khách tối đa của bàn là 10'), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.byKey(const ValueKey('festival_confirm_assign')),
+          )
+          .onPressed,
+      isNull,
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('festival_seat_count')),
+      '5',
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('festival_confirm_assign')));
     await tester.pumpAndSettle();
 
     expect(find.text('Bàn A-02'), findsOneWidget);
-    expect(find.textContaining('Chưa xếp: 0'), findsOneWidget);
+    expect(find.text('7'), findsOneWidget);
+    expect(find.text('5 khách'), findsOneWidget);
+    expect(find.byKey(const ValueKey('festival_assign_table')), findsOneWidget);
     await tester
         .ensureVisible(find.byKey(const ValueKey('festival_change_table_2')));
     await tester.tap(find.byKey(const ValueKey('festival_change_table_2')));
@@ -204,7 +236,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Bàn B-01'), findsNothing);
-    expect(find.textContaining('Chưa xếp: 1'), findsOneWidget);
+    expect(find.text('2 khách'), findsOneWidget);
 
     await tester
         .ensureVisible(find.byKey(const ValueKey('festival_remove_table_1')));
@@ -212,7 +244,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Gỡ bàn').last);
     await tester.pumpAndSettle();
-    expect(find.textContaining('Chưa xếp: 3'), findsOneWidget);
+    expect(find.text('0'), findsWidgets);
 
     await tester
         .ensureVisible(find.byKey(const ValueKey('festival_assign_table')));
@@ -222,21 +254,15 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('festival_table_3')));
     await tester.pumpAndSettle();
-    expect(
-        tester
-            .widget<Text>(find.byKey(const ValueKey('festival_seat_count')))
-            .data,
-        '3');
-    await tester.tap(find.byKey(const ValueKey('festival_seat_decrease')));
+    await tester.enterText(
+      find.byKey(const ValueKey('festival_seat_count')),
+      '8',
+    );
     await tester.pumpAndSettle();
-    expect(
-        tester
-            .widget<Text>(find.byKey(const ValueKey('festival_seat_count')))
-            .data,
-        '2');
     await tester.tap(find.byKey(const ValueKey('festival_confirm_assign')));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Chưa xếp: 1'), findsOneWidget);
+    expect(find.text('8 khách'), findsOneWidget);
+    expect(find.byKey(const ValueKey('festival_assign_table')), findsOneWidget);
 
     ScaffoldMessenger.of(
       tester.element(find.byKey(const ValueKey('festival_continue_checkin'))),
@@ -485,7 +511,7 @@ class _FakeFestivalApi extends FestivalApiService {
     lastCode = code;
     lastGateName = gateName;
     lastNotes = notes;
-    return const FestivalGiftCheckInResult(
+    return FestivalGiftCheckInResult(
       success: true,
       alreadyReceived: false,
       message: 'Trao quà thành công!',
@@ -497,7 +523,7 @@ class _FakeFestivalApi extends FestivalApiService {
       tableName: 'Bàn 01',
       tableSeat: 'Ghế 02',
       giftStatus: 1,
-      giftNote: 'Bộ quà tặng VIP đối tác',
+      giftNote: code == '0912000001' ? null : 'Bộ quà tặng VIP đối tác',
     );
   }
 }

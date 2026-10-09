@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_core_project/common/helpers/is_dark_mode.dart';
 import 'package:flutter_core_project/core/configs/app_config.dart';
 import 'package:flutter_core_project/core/configs/theme/app_colors.dart';
@@ -336,22 +337,16 @@ class _FestivalScannerPageState extends State<FestivalScannerPage> {
 
   Future<void> _assignTable() async {
     final guest = _seatingGuest;
-    if (guest == null || guest.remainingNeededSeats <= 0 || _savingSeating) {
-      return;
-    }
+    if (guest == null || _savingSeating) return;
     try {
       final table = await _pickSeatingTable(minSeats: 1);
       if (table == null || !mounted) return;
-      final maxSeats = guest.remainingNeededSeats < table.availableSeats
-          ? guest.remainingNeededSeats
-          : table.availableSeats;
       final count = await showDialog<int>(
         context: context,
         builder: (_) => _FestivalSeatConfirmationDialog(
           guestName: guest.fullName,
           tableName: table.name,
           zoneName: table.zone,
-          maxSeats: maxSeats,
           availableSeats: table.availableSeats,
         ),
       );
@@ -1323,7 +1318,7 @@ class _FestivalResultView extends StatelessWidget {
     }
     final tableName = checkInResult?.tableName ?? giftResult?.tableName;
     final tableSeat = checkInResult?.tableSeat ?? giftResult?.tableSeat;
-    final giftNote = giftResult?.giftNote;
+    final giftNote = giftResult?.giftNote?.trim();
     final message = checkInResult?.message ?? giftResult?.message ?? '';
     final actionTime = isGift
         ? giftResult?.giftReceivedDate
@@ -1437,7 +1432,7 @@ class _FestivalResultView extends StatelessWidget {
                   const SizedBox(height: 16),
                   _FestivalGuestColorBanner(color: prefixColor),
                 ],
-                if (giftNote != null) ...[
+                if (giftNote != null && giftNote.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   _FestivalGiftInformationCard(giftNote: giftNote),
                 ],
@@ -1642,14 +1637,62 @@ class _FestivalSeatingPanel extends StatelessWidget {
                 label: Text(context.tr('festival_retry')),
               ),
           ] else ...[
-            const SizedBox(height: 8),
-            Text(
-              '${context.tr('festival_invited_guests')}: ${guest!.numberInvited}  •  '
-              '${context.tr('festival_assigned_seats')}: ${guest!.totalAssignedSeats}  •  '
-              '${context.tr('festival_remaining_seats')}: ${guest!.remainingNeededSeats}',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: colors.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: _FestivalSeatingMetric(
+                    icon: Icons.groups_2_outlined,
+                    label: context.tr('festival_current_guest_total'),
+                    value: '${guest!.totalAssignedSeats}',
+                    emphasized: true,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _FestivalSeatingMetric(
+                    icon: Icons.qr_code_2_rounded,
+                    label: context.tr('festival_qr_guest_reference'),
+                    value: '${guest!.numberInvited}',
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _FestivalSeatingMetric(
+                    icon: Icons.table_restaurant_outlined,
+                    label: context.tr('festival_assigned_table_total'),
+                    value: '${guest!.assignedTables.length}',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: colors.secondaryContainer.withAlpha(100),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    size: 18,
+                    color: colors.onSecondaryContainer,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      context.tr('festival_seating_flexible_hint'),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colors.onSecondaryContainer,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             if (guest!.assignedTables.isEmpty) ...[
@@ -1674,11 +1717,38 @@ class _FestivalSeatingPanel extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    Text(
-                      [
-                        if (table.zone != null) table.zone!,
-                        '${table.seatCount} ${context.tr('festival_seat_unit')}',
-                      ].join(' • '),
+                    Row(
+                      children: [
+                        if (table.zone != null)
+                          Expanded(
+                            child: Text(
+                              table.zone!,
+                              style: TextStyle(color: colors.onSurfaceVariant),
+                            ),
+                          )
+                        else
+                          const Spacer(),
+                        Container(
+                          key: ValueKey(
+                            'festival_table_guest_count_${table.tableId}',
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '${table.seatCount} ${context.tr('festival_people_unit')}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     if (table.seatsDescription != null &&
                         table.seatsDescription != '${table.seatCount} chỗ')
@@ -1708,18 +1778,16 @@ class _FestivalSeatingPanel extends StatelessWidget {
                 ),
               ),
             ],
-            if (guest!.remainingNeededSeats > 0) ...[
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  key: const ValueKey('festival_assign_table'),
-                  onPressed: saving ? null : onAssign,
-                  icon: const Icon(Icons.add_rounded),
-                  label: Text(context.tr('festival_assign_table')),
-                ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                key: const ValueKey('festival_assign_table'),
+                onPressed: saving ? null : onAssign,
+                icon: const Icon(Icons.add_rounded),
+                label: Text(context.tr('festival_assign_table')),
               ),
-            ],
+            ),
             if (error != null) ...[
               const SizedBox(height: 8),
               TextButton.icon(
@@ -1729,6 +1797,59 @@ class _FestivalSeatingPanel extends StatelessWidget {
               ),
             ],
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _FestivalSeatingMetric extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final bool emphasized;
+
+  const _FestivalSeatingMetric({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.emphasized = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final background = emphasized
+        ? AppColors.primary.withAlpha(context.isDarkMode ? 55 : 22)
+        : theme.colorScheme.surfaceVariant.withAlpha(140);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 20, color: AppColors.primary),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w900,
+              color: emphasized ? AppColors.primary : null,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 2,
+            textAlign: TextAlign.center,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
@@ -1940,14 +2061,12 @@ class _FestivalSeatConfirmationDialog extends StatefulWidget {
   final String guestName;
   final String tableName;
   final String zoneName;
-  final int maxSeats;
   final int availableSeats;
 
   const _FestivalSeatConfirmationDialog({
     required this.guestName,
     required this.tableName,
     required this.zoneName,
-    required this.maxSeats,
     required this.availableSeats,
   });
 
@@ -1958,7 +2077,26 @@ class _FestivalSeatConfirmationDialog extends StatefulWidget {
 
 class _FestivalSeatConfirmationDialogState
     extends State<_FestivalSeatConfirmationDialog> {
-  late int _seatCount = widget.maxSeats;
+  late final TextEditingController _seatController =
+      TextEditingController(text: '1');
+  int _seatCount = 1;
+
+  bool get _isValid => _seatCount >= 1 && _seatCount <= widget.availableSeats;
+
+  @override
+  void dispose() {
+    _seatController.dispose();
+    super.dispose();
+  }
+
+  void _setSeatCount(int value) {
+    final next = value.clamp(1, widget.availableSeats);
+    _seatController.value = TextEditingValue(
+      text: '$next',
+      selection: TextSelection.collapsed(offset: '$next'.length),
+    );
+    setState(() => _seatCount = next);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1977,24 +2115,45 @@ class _FestivalSeatConfirmationDialogState
           const SizedBox(height: 18),
           Text(context.tr('festival_seats_to_assign'),
               style: const TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               IconButton(
                 key: const ValueKey('festival_seat_decrease'),
                 onPressed:
-                    _seatCount > 1 ? () => setState(() => _seatCount--) : null,
+                    _seatCount > 1 ? () => _setSeatCount(_seatCount - 1) : null,
                 icon: const Icon(Icons.remove_circle_outline_rounded),
               ),
-              Text('$_seatCount',
+              SizedBox(
+                width: 96,
+                child: TextField(
                   key: const ValueKey('festival_seat_count'),
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  controller: _seatController,
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w900,
-                      )),
+                      ),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    errorMaxLines: 2,
+                    errorText: _seatCount < 1
+                        ? context.tr('festival_seat_count_min_error')
+                        : _seatCount > widget.availableSeats
+                            ? '${context.tr('festival_seat_count_max_error')} ${widget.availableSeats}'
+                            : null,
+                  ),
+                  onChanged: (value) {
+                    setState(() => _seatCount = int.tryParse(value) ?? 0);
+                  },
+                ),
+              ),
               IconButton(
                 key: const ValueKey('festival_seat_increase'),
-                onPressed: _seatCount < widget.maxSeats
-                    ? () => setState(() => _seatCount++)
+                onPressed: _seatCount < widget.availableSeats
+                    ? () => _setSeatCount(_seatCount + 1)
                     : null,
                 icon: const Icon(Icons.add_circle_outline_rounded),
               ),
@@ -2009,7 +2168,7 @@ class _FestivalSeatConfirmationDialogState
         ),
         FilledButton(
           key: const ValueKey('festival_confirm_assign'),
-          onPressed: () => Navigator.pop(context, _seatCount),
+          onPressed: _isValid ? () => Navigator.pop(context, _seatCount) : null,
           child: Text(context.tr('festival_confirm')),
         ),
       ],

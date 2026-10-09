@@ -183,7 +183,10 @@ Future<void> initializeDependencies() async {
 
   _registerIfAbsent<LoginApiService>(() => LoginApiService(thpDio));
   _registerIfAbsent<FestivalApiService>(
-    () => FestivalApiService(_buildFestivalDio()),
+    () => FestivalApiService(
+      _buildFestivalDio(),
+      seatingBaseUrl: AppConfig.festivalSeatingBaseUrl,
+    ),
   );
   _registerIfAbsent<FestivalTokenStore>(SecureFestivalTokenStore.new);
   _registerIfAbsent<FestivalGateStore>(

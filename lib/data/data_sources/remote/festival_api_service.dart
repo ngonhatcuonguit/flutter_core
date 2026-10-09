@@ -8,8 +8,12 @@ const String _festivalLogTag = '[THP_FESTIVAL_API]';
 
 class FestivalApiService {
   final Dio _dio;
+  final String _seatingBaseUrl;
 
-  FestivalApiService(this._dio);
+  FestivalApiService(
+    this._dio, {
+    String seatingBaseUrl = 'https://event_checkin.thp.com.vn',
+  }) : _seatingBaseUrl = seatingBaseUrl.replaceFirst(RegExp(r'/+$'), '');
 
   Future<FestivalSession> login({
     required String username,
@@ -199,7 +203,7 @@ class FestivalApiService {
     String? zone,
   }) async {
     final root = await _requestJson(
-      '/api/mobile/HotlineZonesAndTables',
+      '$_seatingBaseUrl/api/mobile/HotlineZonesAndTables',
       accessToken: _requiredToken(accessToken),
       queryParameters: {
         'eventId': eventId,
