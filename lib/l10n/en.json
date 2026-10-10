@@ -303,10 +303,15 @@
   "festival_operation_gift": "Gift redemption",
   "festival_current_gift_station": "Current gift station",
   "festival_gift_scan_qr": "Scan gift QR",
-  "festival_gift_scan_hint": "Place the guest QR code inside the frame to confirm gift redemption.",
+  "festival_gift_scan_hint": "Place the guest QR code inside the frame to view gift information. Redemption is recorded only after confirmation.",
   "festival_gift_manual_title": "Manual gift redemption",
   "festival_gift_manual_description": "Enter the guest code or phone number when the QR code cannot be scanned.",
   "festival_gift_action": "Confirm gift redemption",
+  "festival_gift_lookup_action": "View gift information",
+  "festival_gift_lookup_processing": "Loading gift information...",
+  "festival_gift_review_title": "Review gift information",
+  "festival_gift_review_hint": "This is only a preview and gift redemption has not been recorded. Verify the GiftNote and gift before confirming.",
+  "festival_confirm_gift_action": "Confirm gift delivered",
   "festival_gift_processing": "Sending gift redemption information to the system...",
   "festival_gift_success": "Gift delivered successfully",
   "festival_gift_already_received": "Guest already received a gift",
@@ -345,5 +350,6 @@
   "festival_seat_count_max_error": "Maximum guests for this table:",
   "festival_confirm": "Confirm",
   "festival_gift_information": "Gift note",
-  "festival_continue_gift": "Serve the next guest"
+  "festival_continue_gift": "Serve the next guest",
+  "festival_cancel_preview": "Cancel and scan another code"
 }

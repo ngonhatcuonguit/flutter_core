@@ -313,10 +313,15 @@
   "festival_operation_gift": "Nhận quà",
   "festival_current_gift_station": "Điểm phát quà hiện tại",
   "festival_gift_scan_qr": "Quét QR nhận quà",
-  "festival_gift_scan_hint": "Đưa mã QR của khách vào giữa khung hình để xác nhận nhận quà.",
+  "festival_gift_scan_hint": "Đưa mã QR của khách vào giữa khung hình để xem thông tin quà. Việc nhận quà chỉ được ghi nhận sau khi xác nhận.",
   "festival_gift_manual_title": "Nhận quà thủ công",
   "festival_gift_manual_description": "Nhập mã khách mời hoặc số điện thoại khi không thể quét mã QR.",
   "festival_gift_action": "Xác nhận nhận quà",
+  "festival_gift_lookup_action": "Xem thông tin nhận quà",
+  "festival_gift_lookup_processing": "Đang tải thông tin nhận quà...",
+  "festival_gift_review_title": "Kiểm tra thông tin nhận quà",
+  "festival_gift_review_hint": "Thông tin hiện chỉ đang được xem trước và chưa ghi nhận đã nhận quà. Hãy kiểm tra GiftNote và quà trước khi xác nhận.",
+  "festival_confirm_gift_action": "Xác nhận đã trao quà",
   "festival_gift_processing": "Đang gửi thông tin nhận quà lên hệ thống...",
   "festival_gift_success": "Trao quà thành công",
   "festival_gift_already_received": "Khách đã nhận quà",
@@ -355,5 +360,6 @@
   "festival_seat_count_max_error": "Số khách tối đa của bàn là",
   "festival_confirm": "Xác nhận",
   "festival_gift_information": "Ghi chú quà tặng",
-  "festival_continue_gift": "Tiếp tục phát quà cho khách khác"
+  "festival_continue_gift": "Tiếp tục phát quà cho khách khác",
+  "festival_cancel_preview": "Hủy và quét mã khác"
 }

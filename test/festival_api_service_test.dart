@@ -161,12 +161,55 @@ void main() {
         'QrCode': 'VIP001',
         'GateName': 'Cổng VIP 1',
         'DeviceId': 'My THP Festival',
+        'isSave': 0,
       });
       expect(giftCheckIn.data, isNot(contains('Notes')));
       expect(giftCheckIn.data, isNot(contains('GiftNotes')));
       expect(
         giftCheckIn.headers['Authorization'],
         'Bearer test-access-token',
+      );
+    });
+
+    test('uses isSave only for gift preview and confirmation', () async {
+      final harness = _FestivalApiHarness(
+        (_) => _jsonResponse({
+          'Success': true,
+          'AlreadyCheckedIn': false,
+          'AlreadyReceived': false,
+          'Guest': {'GuestCode': 'VIP001'},
+        }),
+      );
+      addTearDown(harness.close);
+
+      await harness.service.checkIn(
+        code: 'VIP001',
+        accessToken: 'token',
+        gateName: 'Cổng VIP 1',
+      );
+      await harness.service.giftCheckIn(
+        code: 'VIP001',
+        accessToken: 'token',
+        gateName: 'Quầy quà',
+      );
+      await harness.service.giftCheckIn(
+        code: 'VIP001',
+        accessToken: 'token',
+        gateName: 'Quầy quà',
+        isSave: 1,
+      );
+
+      expect(
+        harness.adapter.requests.map((request) => request.data['isSave']),
+        [null, 0, 1],
+      );
+      expect(
+        harness.adapter.requests.map((request) => request.uri.path),
+        [
+          '/api/mobile/checkin',
+          '/api/mobile/gift-checkin',
+          '/api/mobile/gift-checkin',
+        ],
       );
     });
 

@@ -80,6 +80,8 @@ class _FestivalScannerPageState extends State<FestivalScannerPage> {
   Object? _result;
   bool _loadingGates = true;
   bool _processing = false;
+  bool _confirmingStatus = false;
+  bool _awaitingConfirmation = false;
   bool _sessionExpired = false;
   String? _loadError;
   FestivalHotlineGuest? _seatingGuest;
@@ -89,6 +91,9 @@ class _FestivalScannerPageState extends State<FestivalScannerPage> {
   bool _loadingSeating = false;
   bool _savingSeating = false;
   int _scanSerial = 0;
+  String? _pendingCode;
+  OverlayEntry? _topMessageEntry;
+  Timer? _topMessageTimer;
 
   @override
   void initState() {
@@ -98,6 +103,7 @@ class _FestivalScannerPageState extends State<FestivalScannerPage> {
 
   @override
   void dispose() {
+    _dismissTopMessage();
     _manualController.dispose();
     super.dispose();
   }
@@ -181,6 +187,8 @@ class _FestivalScannerPageState extends State<FestivalScannerPage> {
     setState(() {
       _selectedGate = selected;
       _result = null;
+      _awaitingConfirmation = false;
+      _pendingCode = null;
     });
   }
 
@@ -190,9 +198,15 @@ class _FestivalScannerPageState extends State<FestivalScannerPage> {
     if (_processing || code.isEmpty || gate == null) return;
     FocusScope.of(context).unfocus();
     final scanSerial = ++_scanSerial;
+    final notes = manual
+        ? 'Manual check-in from My THP Festival'
+        : 'QR check-in from My THP Festival';
     setState(() {
       _processing = true;
+      _confirmingStatus = false;
       _result = null;
+      _awaitingConfirmation = false;
+      _pendingCode = null;
       _seatingGuest = null;
       _seatingError = null;
       _currentGuestCode = null;
@@ -208,19 +222,25 @@ class _FestivalScannerPageState extends State<FestivalScannerPage> {
           code: code,
           accessToken: token,
           gateName: gate.name,
+          isSave: 0,
         );
       } else {
         result = await _api.checkIn(
           code: code,
           accessToken: token,
           gateName: gate.name,
-          notes: manual
-              ? 'Manual check-in from My THP Festival'
-              : 'QR check-in from My THP Festival',
+          notes: notes,
         );
       }
       if (!mounted) return;
-      setState(() => _result = result);
+      final canConfirm = result is FestivalGiftCheckInResult &&
+          result.success &&
+          !result.alreadyReceived;
+      setState(() {
+        _result = result;
+        _awaitingConfirmation = canConfirm;
+        _pendingCode = canConfirm ? code : null;
+      });
       if (result is FestivalCheckInResult &&
           (result.success || result.alreadyCheckedIn)) {
         final guestCode = result.guestCode ?? code;
@@ -240,6 +260,137 @@ class _FestivalScannerPageState extends State<FestivalScannerPage> {
     } finally {
       if (mounted) setState(() => _processing = false);
     }
+  }
+
+  Future<void> _confirmOperation() async {
+    final code = _pendingCode;
+    final gate = _selectedGate;
+    if (_processing ||
+        _operation != FestivalOperation.giftRedemption ||
+        !_awaitingConfirmation ||
+        code == null ||
+        gate == null) {
+      return;
+    }
+    setState(() {
+      _processing = true;
+      _confirmingStatus = true;
+    });
+    try {
+      final token = await _auth.getAccessToken();
+      if (token == null) throw const FestivalUnauthorizedException();
+      final savedResult = await _api.giftCheckIn(
+        code: code,
+        accessToken: token,
+        gateName: gate.name,
+        isSave: 1,
+      );
+      if (!mounted) return;
+      final completed = savedResult.success || savedResult.alreadyReceived;
+      if (!completed) {
+        final message = savedResult.message;
+        _showOperationMessage(
+          message.isEmpty ? context.tr('festival_operation_failed') : message,
+        );
+        return;
+      }
+      setState(() {
+        _result = savedResult;
+        _awaitingConfirmation = false;
+        _pendingCode = null;
+      });
+    } on FestivalUnauthorizedException {
+      await _auth.logout();
+      if (!mounted) return;
+      setState(() => _sessionExpired = true);
+    } on FestivalApiException catch (error) {
+      _showOperationMessage(error.message);
+    } catch (_) {
+      if (mounted) {
+        _showOperationMessage(context.tr('festival_operation_failed'));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _processing = false;
+          _confirmingStatus = false;
+        });
+      }
+    }
+  }
+
+  void _showOperationMessage(String message) => _showTopMessage(message);
+
+  void _showTopMessage(String message) {
+    if (!mounted || message.trim().isEmpty) return;
+    _dismissTopMessage();
+    final overlay = Overlay.of(context, rootOverlay: true);
+    final entry = OverlayEntry(
+      builder: (overlayContext) => Positioned(
+        top: MediaQuery.of(overlayContext).padding.top + kToolbarHeight + 8,
+        left: 16,
+        right: 16,
+        child: Material(
+          type: MaterialType.transparency,
+          child: Semantics(
+            liveRegion: true,
+            child: Container(
+              key: const ValueKey('festival_top_message'),
+              padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1F2937),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x33000000),
+                    blurRadius: 16,
+                    offset: Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      message,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: context.tr('festival_close'),
+                    onPressed: _dismissTopMessage,
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.close_rounded, color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    _topMessageEntry = entry;
+    overlay.insert(entry);
+    _topMessageTimer = Timer(
+      const Duration(seconds: 3),
+      _dismissTopMessage,
+    );
+  }
+
+  void _dismissTopMessage() {
+    _topMessageTimer?.cancel();
+    _topMessageTimer = null;
+    final entry = _topMessageEntry;
+    _topMessageEntry = null;
+    entry?.remove();
   }
 
   Future<void> _loadSeating(String guestCode, int scanSerial) async {
@@ -467,10 +618,7 @@ class _FestivalScannerPageState extends State<FestivalScannerPage> {
   }
 
   void _showSeatingMessage(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    _showTopMessage(message);
   }
 
   Object _failureResult(String messageKey) {
@@ -494,6 +642,8 @@ class _FestivalScannerPageState extends State<FestivalScannerPage> {
     ++_scanSerial;
     setState(() {
       _result = null;
+      _awaitingConfirmation = false;
+      _pendingCode = null;
       _seatingGuest = null;
       _seatingError = null;
       _currentGuestCode = null;
@@ -587,7 +737,9 @@ class _FestivalScannerPageState extends State<FestivalScannerPage> {
         icon: Icons.cloud_upload_outlined,
         label: context.tr(
           _operation == FestivalOperation.giftRedemption
-              ? 'festival_gift_processing'
+              ? _confirmingStatus
+                  ? 'festival_gift_processing'
+                  : 'festival_gift_lookup_processing'
               : 'festival_checkin_processing',
         ),
         loading: true,
@@ -597,6 +749,8 @@ class _FestivalScannerPageState extends State<FestivalScannerPage> {
       return _FestivalResultView(
         result: _result!,
         operation: _operation,
+        isPreview: _awaitingConfirmation,
+        onConfirm: _confirmOperation,
         onContinue: _continueCheckIn,
         seatingGuest: _seatingGuest,
         prefixColors: _prefixColors,
@@ -757,6 +911,8 @@ class _FestivalScannerPageState extends State<FestivalScannerPage> {
     setState(() {
       _operation = operation;
       _result = null;
+      _awaitingConfirmation = false;
+      _pendingCode = null;
       _seatingGuest = null;
       _seatingError = null;
       _currentGuestCode = null;
@@ -885,7 +1041,7 @@ class _FestivalScannerPageState extends State<FestivalScannerPage> {
             label: Text(
               context.tr(
                 _operation == FestivalOperation.giftRedemption
-                    ? 'festival_gift_action'
+                    ? 'festival_gift_lookup_action'
                     : 'festival_checkin_action',
               ),
             ),
@@ -898,9 +1054,7 @@ class _FestivalScannerPageState extends State<FestivalScannerPage> {
 
   void _submitManual() {
     if (_manualController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.tr('festival_manual_required'))),
-      );
+      _showTopMessage(context.tr('festival_manual_required'));
       return;
     }
     _processCode(_manualController.text, manual: true);
@@ -1256,6 +1410,8 @@ class _ScannerFramePainter extends CustomPainter {
 class _FestivalResultView extends StatelessWidget {
   final Object result;
   final FestivalOperation operation;
+  final bool isPreview;
+  final VoidCallback onConfirm;
   final VoidCallback onContinue;
   final FestivalHotlineGuest? seatingGuest;
   final List<FestivalPrefixColor> prefixColors;
@@ -1270,6 +1426,8 @@ class _FestivalResultView extends StatelessWidget {
   const _FestivalResultView({
     required this.result,
     required this.operation,
+    required this.isPreview,
+    required this.onConfirm,
     required this.onContinue,
     required this.seatingGuest,
     required this.prefixColors,
@@ -1327,27 +1485,33 @@ class _FestivalResultView extends StatelessWidget {
         : (checkInResult?.alreadyCheckedIn ?? false)
             ? checkInResult?.previousGate
             : checkInResult?.gateName;
-    final accent = isSuccess
+    final accent = isPreview
         ? AppColors.primary
-        : isWarning
-            ? const Color(0xFFD97706)
-            : theme.colorScheme.error;
-    final icon = isSuccess
-        ? Icons.check_circle_rounded
-        : isWarning
-            ? Icons.warning_amber_rounded
-            : Icons.cancel_rounded;
-    final titleKey = isGift
-        ? isSuccess
-            ? 'festival_gift_success'
-            : isWarning
-                ? 'festival_gift_already_received'
-                : 'festival_gift_error'
         : isSuccess
-            ? 'festival_checkin_success'
+            ? AppColors.primary
             : isWarning
-                ? 'festival_already_checked_in'
-                : 'festival_checkin_error';
+                ? const Color(0xFFD97706)
+                : theme.colorScheme.error;
+    final icon = isPreview
+        ? Icons.fact_check_outlined
+        : isSuccess
+            ? Icons.check_circle_rounded
+            : isWarning
+                ? Icons.warning_amber_rounded
+                : Icons.cancel_rounded;
+    final titleKey = isPreview
+        ? 'festival_gift_review_title'
+        : isGift
+            ? isSuccess
+                ? 'festival_gift_success'
+                : isWarning
+                    ? 'festival_gift_already_received'
+                    : 'festival_gift_error'
+            : isSuccess
+                ? 'festival_checkin_success'
+                : isWarning
+                    ? 'festival_already_checked_in'
+                    : 'festival_checkin_error';
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -1451,7 +1615,38 @@ class _FestivalResultView extends StatelessWidget {
                     label: Text(tableSeat),
                   ),
                 ],
-                if (message.isNotEmpty) ...[
+                if (isPreview) ...[
+                  const SizedBox(height: 14),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withAlpha(
+                        context.isDarkMode ? 38 : 18,
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.info_outline_rounded,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            context.tr('festival_gift_review_hint'),
+                            style: const TextStyle(
+                              height: 1.4,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ] else if (message.isNotEmpty) ...[
                   const SizedBox(height: 14),
                   Text(
                     message,
@@ -1459,7 +1654,8 @@ class _FestivalResultView extends StatelessWidget {
                     style: const TextStyle(height: 1.4),
                   ),
                 ],
-                if (actionTime != null || actionGate != null) ...[
+                if (!isPreview &&
+                    (actionTime != null || actionGate != null)) ...[
                   const SizedBox(height: 12),
                   Text(
                     [actionTime, actionGate].whereType<String>().join(' • '),
@@ -1484,21 +1680,42 @@ class _FestivalResultView extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 20),
-          FilledButton.icon(
-            key: const ValueKey('festival_continue_checkin'),
-            onPressed: savingSeating ? null : onContinue,
-            icon: Icon(
-              isGift
-                  ? Icons.card_giftcard_rounded
-                  : Icons.qr_code_scanner_rounded,
+          if (isPreview) ...[
+            FilledButton.icon(
+              key: const ValueKey('festival_confirm_operation'),
+              onPressed: savingSeating ? null : onConfirm,
+              icon: const Icon(Icons.redeem_rounded),
+              label: Text(context.tr('festival_confirm_gift_action')),
+              style: _festivalPrimaryButtonStyle(height: 56),
             ),
-            label: Text(
-              context.tr(
-                isGift ? 'festival_continue_gift' : 'festival_continue_checkin',
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                key: const ValueKey('festival_continue_checkin'),
+                onPressed: savingSeating ? null : onContinue,
+                icon: const Icon(Icons.close_rounded),
+                label: Text(context.tr('festival_cancel_preview')),
               ),
             ),
-            style: _festivalPrimaryButtonStyle(height: 54),
-          ),
+          ] else
+            FilledButton.icon(
+              key: const ValueKey('festival_continue_checkin'),
+              onPressed: savingSeating ? null : onContinue,
+              icon: Icon(
+                isGift
+                    ? Icons.card_giftcard_rounded
+                    : Icons.qr_code_scanner_rounded,
+              ),
+              label: Text(
+                context.tr(
+                  isGift
+                      ? 'festival_continue_gift'
+                      : 'festival_continue_checkin',
+                ),
+              ),
+              style: _festivalPrimaryButtonStyle(height: 54),
+            ),
         ],
       ),
     );

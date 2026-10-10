@@ -101,7 +101,6 @@ class FestivalApiService {
     if (accessToken.trim().isEmpty) {
       throw const FestivalUnauthorizedException();
     }
-
     final root = await _requestJson(
       '/api/mobile/checkin',
       method: 'POST',
@@ -123,6 +122,7 @@ class FestivalApiService {
     required String code,
     required String accessToken,
     required String gateName,
+    int isSave = 0,
   }) async {
     final normalizedCode = code.trim();
     if (normalizedCode.isEmpty) {
@@ -130,6 +130,9 @@ class FestivalApiService {
     }
     if (accessToken.trim().isEmpty) {
       throw const FestivalUnauthorizedException();
+    }
+    if (isSave != 0 && isSave != 1) {
+      throw const FestivalApiException('isSave must be 0 or 1.');
     }
 
     final root = await _requestJson(
@@ -139,6 +142,7 @@ class FestivalApiService {
         'QrCode': normalizedCode,
         'GateName': gateName.trim(),
         'DeviceId': 'My THP Festival',
+        'isSave': isSave,
       },
       accessToken: accessToken,
     );

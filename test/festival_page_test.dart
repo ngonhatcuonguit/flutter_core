@@ -51,6 +51,12 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('festival_manual_mode')));
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('festival_manual_submit')));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('festival_top_message')), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump();
     await tester.enterText(
       find.byKey(const ValueKey('festival_manual_input')),
       '0901234567',
@@ -105,13 +111,22 @@ void main() {
 
     expect(api.lastCode, 'QR001');
     expect(api.lastGateName, 'Cổng VIP 1');
-    expect(find.text('Trao quà thành công'), findsOneWidget);
+    expect(api.giftSaves, [0]);
+    expect(find.text('Kiểm tra thông tin nhận quà'), findsOneWidget);
+    expect(find.text('Trao quà thành công'), findsNothing);
     expect(find.text('Ghi chú quà tặng'), findsOneWidget);
     expect(find.text('Bộ quà tặng VIP đối tác'), findsOneWidget);
     expect(
       find.text('QR gift redemption from My THP Festival'),
       findsNothing,
     );
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('festival_confirm_operation')),
+    );
+    await tester.tap(find.byKey(const ValueKey('festival_confirm_operation')));
+    await tester.pumpAndSettle();
+    expect(api.giftSaves, [0, 1]);
+    expect(find.text('Trao quà thành công'), findsOneWidget);
 
     await tester.ensureVisible(
       find.byKey(const ValueKey('festival_continue_checkin')),
@@ -128,12 +143,19 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(api.lastCode, '0912000001');
-    expect(find.text('Trao quà thành công'), findsOneWidget);
+    expect(find.text('Kiểm tra thông tin nhận quà'), findsOneWidget);
     expect(find.text('Ghi chú quà tặng'), findsNothing);
     expect(
       find.byKey(const ValueKey('festival_gift_information')),
       findsNothing,
     );
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('festival_confirm_operation')),
+    );
+    await tester.tap(find.byKey(const ValueKey('festival_confirm_operation')));
+    await tester.pumpAndSettle();
+    expect(api.giftSaves.sublist(api.giftSaves.length - 2), [0, 1]);
+    expect(find.text('Trao quà thành công'), findsOneWidget);
 
     await tester.binding.setSurfaceSize(const Size(320, 568));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -314,6 +336,7 @@ class _FakeFestivalApi extends FestivalApiService {
   String? lastCode;
   String? lastGateName;
   String? lastNotes;
+  final List<int> giftSaves = [];
   String? searchGuestOverrideCode;
   final List<FestivalAssignedTable> seating = [
     const FestivalAssignedTable(
@@ -509,9 +532,11 @@ class _FakeFestivalApi extends FestivalApiService {
     required String code,
     required String accessToken,
     required String gateName,
+    int isSave = 0,
   }) async {
     lastCode = code;
     lastGateName = gateName;
+    giftSaves.add(isSave);
     return FestivalGiftCheckInResult(
       success: true,
       alreadyReceived: false,
