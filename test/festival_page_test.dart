@@ -105,10 +105,13 @@ void main() {
 
     expect(api.lastCode, 'QR001');
     expect(api.lastGateName, 'Cổng VIP 1');
-    expect(api.lastNotes, contains('QR gift'));
     expect(find.text('Trao quà thành công'), findsOneWidget);
     expect(find.text('Ghi chú quà tặng'), findsOneWidget);
     expect(find.text('Bộ quà tặng VIP đối tác'), findsOneWidget);
+    expect(
+      find.text('QR gift redemption from My THP Festival'),
+      findsNothing,
+    );
 
     await tester.ensureVisible(
       find.byKey(const ValueKey('festival_continue_checkin')),
@@ -125,8 +128,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(api.lastCode, '0912000001');
-    expect(api.lastNotes, contains('Manual gift'));
     expect(find.text('Trao quà thành công'), findsOneWidget);
+    expect(find.text('Ghi chú quà tặng'), findsNothing);
     expect(
       find.byKey(const ValueKey('festival_gift_information')),
       findsNothing,
@@ -506,11 +509,9 @@ class _FakeFestivalApi extends FestivalApiService {
     required String code,
     required String accessToken,
     required String gateName,
-    String notes = 'Gift redemption from My THP Festival',
   }) async {
     lastCode = code;
     lastGateName = gateName;
-    lastNotes = notes;
     return FestivalGiftCheckInResult(
       success: true,
       alreadyReceived: false,

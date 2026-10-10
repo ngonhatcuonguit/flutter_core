@@ -123,7 +123,6 @@ class FestivalApiService {
     required String code,
     required String accessToken,
     required String gateName,
-    String notes = 'Gift redemption from My THP Festival',
   }) async {
     final normalizedCode = code.trim();
     if (normalizedCode.isEmpty) {
@@ -140,7 +139,6 @@ class FestivalApiService {
         'QrCode': normalizedCode,
         'GateName': gateName.trim(),
         'DeviceId': 'My THP Festival',
-        'Notes': notes,
       },
       accessToken: accessToken,
     );

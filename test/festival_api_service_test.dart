@@ -97,7 +97,6 @@ void main() {
         code: ' VIP001 ',
         accessToken: session.accessToken,
         gateName: gates.single.name,
-        notes: 'Gift test',
       );
 
       expect(session.accessToken, 'test-access-token');
@@ -162,8 +161,9 @@ void main() {
         'QrCode': 'VIP001',
         'GateName': 'Cổng VIP 1',
         'DeviceId': 'My THP Festival',
-        'Notes': 'Gift test',
       });
+      expect(giftCheckIn.data, isNot(contains('Notes')));
+      expect(giftCheckIn.data, isNot(contains('GiftNotes')));
       expect(
         giftCheckIn.headers['Authorization'],
         'Bearer test-access-token',

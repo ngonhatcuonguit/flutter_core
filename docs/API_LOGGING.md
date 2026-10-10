@@ -78,4 +78,7 @@ POST /api/mobile/gift-checkin
 
 `/api/mobile/gift-checkin` dùng cho quét QR hoặc nhập thủ công mã khách mời/số
 điện thoại để xác nhận nhận quà. Endpoint chống nhận quà trùng và trả về thời
-gian, điểm phát quà trước đó qua `AlreadyReceived` và dữ liệu `Guest`.
+gian, điểm phát quà trước đó qua `AlreadyReceived` và dữ liệu `Guest`. Request
+chỉ gửi `QrCode`, `GateName` và `DeviceId`, không gửi `Notes`/`GiftNotes`.
+Nếu response có `GiftNote` khác rỗng, ứng dụng hiển thị đúng ghi chú đó; nếu
+không có thì toàn bộ nhãn ghi chú quà tặng được ẩn.

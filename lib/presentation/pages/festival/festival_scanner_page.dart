@@ -208,9 +208,6 @@ class _FestivalScannerPageState extends State<FestivalScannerPage> {
           code: code,
           accessToken: token,
           gateName: gate.name,
-          notes: manual
-              ? 'Manual gift redemption from My THP Festival'
-              : 'QR gift redemption from My THP Festival',
         );
       } else {
         result = await _api.checkIn(
